@@ -3,7 +3,10 @@ import { kernel, model, schema } from '../../../base';
 import { Entity, IEntity, OperateType } from '../../public';
 import { IDirectory } from '../../thing/directory';
 import { IBelong } from '../base/belong';
+import { ISession } from '../..';
 
+/** 共享信息数据集 */
+export const AuthoritySessionIdSet = new Map<string, ISession>();
 /** 权限接口 */
 export interface IAuthority extends IEntity<schema.XAuthority> {
   /** 加载归属组织 */
@@ -26,6 +29,8 @@ export interface IAuthority extends IEntity<schema.XAuthority> {
   delete(notity?: boolean): Promise<boolean>;
   /** 根据权限id查找权限实例 */
   findAuthById(authId: string, auth?: IAuthority): IAuthority | undefined;
+  /** 查询权限id查找权限实例 */
+  findAuthByOrgId(shareId: string): IAuthority[];
   /** 根据权限获取所有父级权限Id */
   loadParentAuthIds(authIds: string[]): string[];
   /** 判断是否拥有某些权限 */
@@ -129,6 +134,16 @@ export class Authority extends Entity<schema.XAuthority> implements IAuthority {
         }
       }
     }
+  }
+  findAuthByOrgId(shareId: string): IAuthority[] {
+    var authoritys: IAuthority[] = [];
+    if (this.metadata.shareId === shareId) {
+      authoritys.push(this);
+    }
+    for (const child of this.children) {
+      authoritys.push(...child.findAuthByOrgId(shareId));
+    }
+    return authoritys;
   }
   async deepLoad(reload: boolean = false): Promise<void> {
     await this.loadMembers(reload);

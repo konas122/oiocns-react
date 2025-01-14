@@ -6,6 +6,7 @@ export const CSSUnits = [
   'px',
   'pt',
   'cm',
+  'mm',
   'in',
   'em',
   'rem',
@@ -41,7 +42,7 @@ const CssSizeEditor: IExistTypeEditor<string> = ({ value, onChange }) => {
       setNumber(null);
       setUnit(null);
     } else {
-      const match = /^(\d+)([a-zA-Z%]+)$/.exec(value);
+      const match = /^([0-9.]+)([a-zA-Z%]+)$/.exec(value);
       if (match) {
         setType('value');
         setNumber(parseFloat(match[1]));

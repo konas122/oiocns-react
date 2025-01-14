@@ -100,7 +100,6 @@ const SpeciesModal: React.FC<IProps> = ({ current, finished }) => {
     );
   };
 
-  console.log(current.items);
   return (
     <FullScreenModal
       open

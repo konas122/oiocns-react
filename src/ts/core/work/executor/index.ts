@@ -1,15 +1,14 @@
-import { model } from '@/ts/base';
-import { Controller } from '@/ts/controller';
+import { Command, model } from '@/ts/base';
 import { IWorkTask } from '../..';
 
 export type FormData = Map<string, model.FormEditData>;
 
 // 执行器
-export interface IExecutor {
+export interface IExecutor<T extends model.Executor = model.Executor> {
   // 控制器
-  command: Controller;
+  command: Command;
   // 元数据
-  metadata: model.Executor;
+  metadata: T;
   // 当前任务
   task: IWorkTask;
   // 进度
@@ -20,20 +19,20 @@ export interface IExecutor {
   changeProgress(p: number): void;
 }
 
-export abstract class Executor implements IExecutor {
-  constructor(metadata: model.Executor, task: IWorkTask) {
-    this.command = new Controller(metadata.id);
+export abstract class Executor<T extends model.Executor> implements IExecutor<T> {
+  constructor(metadata: T, task: IWorkTask) {
+    this.command = new Command();
     this.metadata = metadata;
     this.task = task;
     this.progress = 0;
   }
-  command: Controller;
-  metadata: model.Executor;
+  command: Command;
+  metadata: T;
   task: IWorkTask;
   progress: number;
   abstract execute(data: FormData): Promise<boolean>;
   changeProgress(p: number) {
     this.progress = p;
-    this.command.changCallback();
+    this.command.emitter('all', 'progress', p);
   }
 }

@@ -1,12 +1,14 @@
-import { Popover, Button } from 'antd';
+import { Popover } from 'antd';
 import * as ai from 'react-icons/ai';
 import React, { useState } from 'react';
 import cls from './index.module.less';
-import { AddNodeType } from '@/components/Common/FlowDesign/processType';
+import { AddNodeType } from '@/utils/work';
+import { PlusOutlined } from '@ant-design/icons';
 
 type InsertButtonProps = {
   onInsertNode: Function;
   allowBranche?: boolean;
+  isGroupWork: boolean;
 };
 
 /**
@@ -29,7 +31,7 @@ const InsertButton: React.FC<InsertButtonProps> = (props: any) => {
               setOpen(false);
             }}>
             <ai.AiOutlineTeam color="#3296fa" />
-            <span>审批</span>
+            <span>审核</span>
           </div>
           <div
             onClick={() => {
@@ -59,39 +61,49 @@ const InsertButton: React.FC<InsertButtonProps> = (props: any) => {
               </div>
             </>
           )}
-          <div
-            onClick={() => {
-              props.onInsertNode(AddNodeType.ORGANIZATIONA);
-              setOpen(false);
-            }}>
-            <ai.AiOutlineApartment color="#7f6dac" />
-            <span>组织网关</span>
-          </div>
-          <div
-            onClick={() => {
-              props.onInsertNode(AddNodeType.CHILDWORK);
-              setOpen(false);
-            }}>
-            <ai.AiOutlineFork color="#af343e" />
-            <span>其他办事</span>
-          </div>
-          <div
-            onClick={() => {
-              props.onInsertNode(AddNodeType.GATEWAY);
-              setOpen(false);
-            }}>
-            <ai.AiOutlineForm color="#af343e" />
-            <span>分流网关</span>
-          </div>
+          {!props.isGroupWork && (
+            <>
+              <div
+                onClick={() => {
+                  props.onInsertNode(AddNodeType.Confluence);
+                  setOpen(false);
+                }}>
+                <ai.AiOutlineSend color="#ff943e" />
+                <span>汇流网关</span>
+              </div>
+              <div
+                onClick={() => {
+                  props.onInsertNode(AddNodeType.CUSTOM);
+                  setOpen(false);
+                }}>
+                <ai.AiOutlineApartment color="#7f6dac" />
+                <span>自由节点</span>
+              </div>
+              <div
+                onClick={() => {
+                  props.onInsertNode(AddNodeType.ORGANIZATIONA);
+                  setOpen(false);
+                }}>
+                <ai.AiOutlineApartment color="#7f6dac" />
+                <span>组织网关</span>
+              </div>
+              <div
+                onClick={() => {
+                  props.onInsertNode(AddNodeType.GATEWAY);
+                  setOpen(false);
+                }}>
+                <ai.AiOutlineForm color="#af343e" />
+                <span>分流网关</span>
+              </div>
+            </>
+          )}
         </div>
       }
       trigger="click">
-      <Button
-        type="primary"
-        shape="circle"
-        icon={<ai.AiOutlinePlus />}
-        onClick={() => setOpen(true)}
-      />
+      <div className={cls[`node-addIcon`]} onClick={() => setOpen(true)}>
+        <PlusOutlined />
+        添加
+      </div>
     </Popover>
   );
 };

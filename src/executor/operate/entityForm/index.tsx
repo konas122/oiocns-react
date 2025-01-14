@@ -9,10 +9,17 @@ import SpeciesForm from './speciesForm';
 import PropertyForm from './propertyForm';
 import TargetForm from './targetForm';
 import LabelsForm from './labelsForm';
+import ViewForm from './viewForm';
 import RenameForm from './renameForm';
 import TransferForm from './transferForm';
 import PageTemplateForm from './templateForm';
-
+import SequencesModal from './sequenceForm';
+import ReportTreeForm from './ReportTreeForm';
+import DistributionTaskForm from './distributionTaskForm';
+import PrintConfigModalCreate from './printConfigModalCreate';
+import DocFileForm from './docFileForm';
+import DocumentTemplateForm from './DocumentTemplateForm';
+import ReportForm from './reportForm';
 interface IProps {
   cmd: string;
   entity: IEntity<schema.XEntity>;
@@ -73,6 +80,28 @@ const EntityForm: React.FC<IProps> = ({ cmd, entity, finished }) => {
           finished={reloadFinish}
         />
       );
+    case 'newReport':
+    case 'updateReport':
+    case 'remarkReport':
+      return (
+        <ReportForm
+          formType={cmd.replace('Report', '')}
+          typeName={'表格'}
+          current={entity as any}
+          finished={reloadFinish}
+        />
+      );
+    case 'newView':
+    case 'updateView':
+    case 'remarkView':
+      return (
+        <ViewForm
+          formType={cmd.replace('View', '')}
+          typeName={'视图'}
+          current={entity as any}
+          finished={reloadFinish}
+        />
+      );
     case 'newProperty':
     case 'updateProperty':
     case 'remarkProperty':
@@ -92,6 +121,55 @@ const EntityForm: React.FC<IProps> = ({ cmd, entity, finished }) => {
           current={entity as any}
           finished={reloadFinish}
         />
+      );
+    case 'newSequences':
+    case 'updateSequence':
+    case 'remarkSequence':
+      return (
+        <SequencesModal
+          formType={cmd}
+          typeName="序列"
+          current={entity as any}
+          finished={reloadFinish}
+        />
+      );
+    case 'newReportTree':
+    case 'updateReportTree':
+    case 'generateReportTree':
+      return (
+        <ReportTreeForm formType={cmd} current={entity as any} finished={reloadFinish} />
+      );
+    case 'newDistributionTask':
+    case 'updateDistributionTask':
+      return (
+        <DistributionTaskForm
+          formType={cmd}
+          current={entity as any}
+          finished={reloadFinish}
+        />
+      );
+    case 'newPrint':
+    case 'updatePrint':
+      return (
+        <PrintConfigModalCreate
+          formType={cmd}
+          typeName={'打印模板'}
+          current={entity as any}
+          finished={reloadFinish}
+        />
+      );
+    case 'newDocumentTemplate':
+    case 'updateDocumentTemplate':
+      return (
+        <DocumentTemplateForm
+          formType={cmd}
+          current={entity as any}
+          finished={reloadFinish}
+        />
+      );
+    case 'newDoc':
+      return (
+        <DocFileForm formType={cmd} current={entity as any} finished={reloadFinish} />
       );
     default: {
       return (

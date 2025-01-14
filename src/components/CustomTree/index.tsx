@@ -170,6 +170,7 @@ const CustomTree: React.FC<TreeType> = ({
                   }}
                   trigger={['click', 'contextMenu']}>
                   <AiOutlineEllipsis className={cls.titleIcon} rotate={90} />
+                  更多
                 </Dropdown>
               ) : (
                 ''

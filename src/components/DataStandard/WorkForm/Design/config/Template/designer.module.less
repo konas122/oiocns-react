@@ -1,0 +1,57 @@
+.top {
+  height: 40px;
+}
+
+.content {
+  width: 100%;
+  flex: auto;
+  display: flex;
+  gap: 8px;
+  > div {
+    background-color: white;
+  }
+  :global(.o-page-host) {
+    width: 1px;
+    flex: auto;
+    background-color: @layout-body-background;
+  }
+}
+
+.designConfig {
+  width: 300px;
+}
+.myTable {
+  border-collapse: collapse; /* 使边框合并为单一边框 */
+}
+ 
+.myTable, .myTable th, .myTable td {
+  border: 1px solid black; /* 设置边框样式 */
+}
+.printContent{
+  min-height: 50px;
+  width: 100%;
+    border-collapse: collapse;
+    font-size: 14px !important;
+}
+.printContent tr{
+  max-height: 50px;
+}
+.printContent td{
+  text-align:center;
+  padding:0;
+}
+.printTips{
+  margin: 0 auto;
+  line-height: 300px;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 900;
+}
+.current {
+  border: 3px solid #87CEFA;
+}
+.textDiv{
+  height:30px;
+  width: 30%;
+  overflow: hidden;
+}

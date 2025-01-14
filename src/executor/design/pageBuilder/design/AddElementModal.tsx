@@ -1,12 +1,16 @@
 import { defineFC } from '@/utils/react/fc';
-import { Form, Input, Modal, Select } from 'antd';
-import React, { useContext, useMemo } from 'react';
-import { DesignContext, PageContext } from '../render/PageContext';
+import { Form, FormInstance, Input, Modal, Select } from 'antd';
+import React, { ReactNode, useContext, useMemo } from 'react';
+import { DesignContext, PageContext } from '@/components/PageElement/render/PageContext';
+import _ from 'lodash';
 
 interface Props {
   parentId: string;
+  accepts?: string[];
   onFinished: () => void;
   prop?: string;
+  initialValue?: Dictionary<any>;
+  extraFields?: (form: FormInstance) => ReactNode;
 }
 
 export default defineFC({
@@ -17,21 +21,63 @@ export default defineFC({
 
     const elementTypes = useMemo(() => {
       const ret: { label: string; value: string }[] = [];
+
+      let parent = ctx.view.treeManager.allElements[props.parentId];
+      if (!parent) {
+        console.warn(`找不到父元素 ${props.parentId}`);
+        parent = ctx.view.treeManager.root;
+      }
+      const meta = ctx.view.treeManager.factory.getMeta(parent.kind);
+      if (!meta) {
+        console.warn(`找不到元素 ${parent.kind} 的定义`);
+      }
+      let filter = meta?.childrenFilter || (() => true);
+      if (parent.kind == 'Root' && ctx.view.page.typeName == '文档模板') {
+        filter = ['Paper'];
+      }
+
       for (const [name, meta] of Object.entries(ctx.view.elements.elementMeta)) {
-        if (name != 'Root') {
-          ret.push({
-            value: name,
-            label: meta?.label,
-          });
+        if (name == 'Root') {
+          continue;
+        }
+        const item = {
+          value: name,
+          label: meta?.label,
+        };
+
+        // 元素类别筛选
+        let canSelect = false;
+        if (!props.accepts || props.accepts.length == 0) {
+          canSelect = true;
+        } else if (props.accepts.includes(meta.type)) {
+          canSelect = true;
+        }
+
+        // 子元素筛选
+        let canBeChild = true;
+        if (Array.isArray(filter)) {
+          canBeChild = filter.includes(name);
+        } else {
+          canBeChild = filter({ ...meta, name });
+        }
+
+        if (canSelect && canBeChild) {
+          ret.push(item);
         }
       }
       return ret;
-    }, []);
+    }, [props.accepts]);
 
     async function handleCreate() {
       const res = await form.validateFields();
       const { kind, name } = res;
-      ctx.view.addElement(kind, name, props.prop, props.parentId);
+      const params = Object.assign(
+        props.initialValue || {},
+        _.omit(res, ['kind', 'name']),
+      );
+      ctx.view.addElement(kind, name, props.prop, props.parentId, {
+        props: params,
+      });
       props.onFinished();
     }
 
@@ -42,7 +88,7 @@ export default defineFC({
         open
         onCancel={() => props.onFinished()}
         onOk={handleCreate}>
-        <Form form={form}>
+        <Form form={form} initialValues={props.initialValue}>
           <Form.Item
             name="kind"
             label="类型"
@@ -52,7 +98,10 @@ export default defineFC({
               onChange={(v) => {
                 for (const item of elementTypes) {
                   if (item.value == v) {
-                    form.setFieldValue('name', item.label);
+                    const count = Object.values(ctx.view.treeManager.allElements).filter(
+                      (e) => e.kind == v,
+                    ).length;
+                    form.setFieldValue('name', (item.label || '') + (count + 1));
                   }
                 }
               }}>
@@ -75,6 +124,7 @@ export default defineFC({
             rules={[{ required: true, message: '请输入名称' }]}>
             <Input />
           </Form.Item>
+          {props.extraFields?.(form)}
         </Form>
       </Modal>
     );

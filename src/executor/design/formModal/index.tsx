@@ -2,12 +2,18 @@ import React from 'react';
 import FormDesign from '@/components/DataStandard/WorkForm/Design';
 import { IForm } from '@/ts/core';
 import FullScreenModal from '@/components/Common/fullScreen';
+import useAsyncLoad from '@/hooks/useAsyncLoad';
 
 interface IProps {
   current: IForm;
   finished: () => void;
 }
 const FromModal: React.FC<IProps> = ({ current, finished }: IProps) => {
+  const [loaded] = useAsyncLoad(async () => {
+    await current.load();
+  }, []);
+
+  if (!loaded) return <></>;
   return (
     <FullScreenModal
       open

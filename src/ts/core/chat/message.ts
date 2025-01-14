@@ -1,5 +1,6 @@
 import { common, model, parseAvatar } from '../../base';
 import { MessageType, TargetType } from '../public';
+import { IBelong } from '../target/base/belong';
 import { IPerson } from '../target/person';
 import { ISession } from './session';
 export interface IMessageLabel {
@@ -9,12 +10,14 @@ export interface IMessageLabel {
   labeler: model.ShareIcon;
   /** 贴标签的时间 */
   time: string;
+  /** 代表组织Id */
+  designateId: string;
   /** 用户Id */
   userId: string;
 }
 export class MessageLabel implements IMessageLabel {
-  constructor(_matedata: model.CommentType, _user: IPerson) {
-    this.user = _user;
+  constructor(_matedata: model.CommentType, target: IPerson) {
+    this.user = target.user;
     this.metadata = _matedata;
   }
   user: IPerson;
@@ -25,8 +28,11 @@ export class MessageLabel implements IMessageLabel {
   get userId(): string {
     return this.metadata.userId;
   }
+  get designateId(): string {
+    return this.metadata.designateId;
+  }
   get labeler(): model.ShareIcon {
-    return this.user.findShareById(this.metadata.userId);
+    return this.user.findShareById(this.metadata.designateId ?? this.metadata.userId);
   }
   get time(): string {
     return this.metadata.time;
@@ -75,8 +81,9 @@ export interface IMessage {
   unreadInfo: IMessageLabel[];
   /** 评论数 */
   comments: number;
+  /** 会话 */
+  chat: ISession;
 }
-
 export class Message implements IMessage {
   constructor(_metadata: model.ChatMessageType, _chat: ISession) {
     this._chat = _chat;
@@ -129,10 +136,13 @@ export class Message implements IMessage {
   get isMySend(): boolean {
     return this.metadata.fromId === this.user.id;
   }
+  get chat(): ISession {
+    return this._chat;
+  }
   get isReaded(): boolean {
     return (
-      this._chat.isBelongPerson ||
       this.isMySend ||
+      this._chat.isBelongPerson ||
       this.labels.some((i) => i.userId === this.user.id)
     );
   }
@@ -144,13 +154,10 @@ export class Message implements IMessage {
     if (this._chat.metadata.typeName === TargetType.Person) {
       return ids.length === 1 ? '已读' : '未读';
     }
-    const noread = this._chat.members
-      .filter((i) => i.id != this.metadata.createUser)
-      .filter((i) => !ids.includes(i.id)).length;
-    if (noread === 0) {
+    if (ids.length === this._chat.memberCount - 1) {
       return '全部已读';
     }
-    return noread + '人未读';
+    return this._chat.memberCount - ids.length - 1 + '人未读';
   }
   get readedIds(): string[] {
     const ids = this.labels.map((v) => v.userId);
@@ -164,8 +171,10 @@ export class Message implements IMessage {
         (m) =>
           new MessageLabel(
             {
+              id: m.id,
               label: m.remark,
               userId: m.id,
+              designateId: m.id,
               time: '',
             },
             this.user,
@@ -176,11 +185,17 @@ export class Message implements IMessage {
     return this.labels.filter((v) => v.label != '已读').length;
   }
   get allowRecall(): boolean {
-    return (
-      this.msgType != MessageType.Recall &&
-      this.metadata.fromId === this.user.id &&
-      new Date().getTime() - new Date(this.createTime).getTime() < 2 * 60 * 1000
-    );
+    if (!this.isMySend) {
+      return false;
+    }
+    switch (this.msgType) {
+      case MessageType.Recall:
+        return false;
+      case MessageType.Task:
+        return true;
+      default:
+        return new Date().getTime() - new Date(this.createTime).getTime() < 2 * 60 * 1000;
+    }
   }
   get allowEdit(): boolean {
     return this.isMySend && this.msgType === MessageType.Recall;
@@ -199,6 +214,10 @@ export class Message implements IMessage {
         return `${header}[${MessageType.Voice}]`;
       case MessageType.Forward:
         return `${this.forward.length}条转发信息`;
+      case MessageType.Dynamic:
+        return `${this.from.name}[${this.msgType}]:${parseAvatar(
+          this.msgBody,
+        ).content.replace(/(<([^>]+)>)/gi, '')}`;
     }
     const file: model.FileItemShare = parseAvatar(this.msgBody);
     if (file) {
@@ -214,5 +233,57 @@ export class Message implements IMessage {
   }
   get msgSource(): string {
     return this._msgBody;
+  }
+}
+export class GroupMessage extends Message {
+  space: IBelong;
+  constructor(_metadata: model.ChatMessageType, _chat: ISession) {
+    super(_metadata, _chat);
+    this.space = _chat.target.space;
+  }
+  get isMySend(): boolean {
+    return (
+      this.metadata.fromId === this.user.id && this.metadata.designateId === this.space.id
+    );
+  }
+  get isReaded(): boolean {
+    return true
+  }
+  get readedinfo(): string {
+    const ids = this.readedIds;
+    if (ids.length === 0) {
+      return '全部未读';
+    }
+    const noread = this._chat.members
+      .filter((i) => i.id != this.metadata.designateId)
+      .filter((i) => !ids.includes(i.id)).length;
+    if (noread === 0) {
+      return '全部已读';
+    }
+    return noread + '人未读';
+  }
+  get readedIds(): string[] {
+    const ids = this.labels
+      .map((v) => v.designateId)
+      .filter((a) => a != this.metadata.designateId);
+    return ids.filter((id, i) => ids.indexOf(id) === i);
+  }
+  get unreadInfo(): IMessageLabel[] {
+    const ids = this.readedIds;
+    return this._chat.members
+      .filter((m) => !ids.includes(m.id) && m.id != this.metadata.designateId)
+      .map(
+        (m) =>
+          new MessageLabel(
+            {
+              id: m.id,
+              label: m.remark,
+              userId: m.id,
+              designateId: m.id,
+              time: '',
+            },
+            this.user,
+          ),
+      );
   }
 }

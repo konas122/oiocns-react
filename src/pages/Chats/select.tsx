@@ -5,6 +5,7 @@ import DirectoryViewer from '@/components/Directory/views';
 import { command } from '@/ts/base';
 import { cleanMenus } from '@/utils/tools';
 import { loadFileMenus } from '@/executor/fileOperate';
+import { TargetType } from '@/ts/core/public';
 
 /** 沟通-通讯录-选择 */
 const ChatSelect: React.FC<{ onSelected: (chat: ISession) => void }> = ({
@@ -17,10 +18,27 @@ const ChatSelect: React.FC<{ onSelected: (chat: ISession) => void }> = ({
     setChats(filterChats(currentTag));
   }, [currentTag]);
 
+  const specialDispose = (tag: string, groupTags: string[]) => {
+    const { companys } = orgCtrl.user;
+    let res1 = companys.filter((item) => groupTags.includes(item.name));
+    let newTag = res1.length > 0 ? res1[0].name : TargetType.Company;
+    switch (tag) {
+      case TargetType.Cohort:
+        return res1.length > 0 ? false : groupTags.includes(tag);
+      case TargetType.Company:
+        if (groupTags.includes(TargetType.Colleague)) {
+          return false;
+        }
+        return groupTags.includes(newTag);
+      default:
+        return groupTags.includes(tag);
+    }
+  };
+
   const filterChats = (tag: string) => {
     const temps = orgCtrl.chats.filter((i) => i.isMyChat);
     return temps
-      .filter((a) => tag === '全部' || a.groupTags.includes(tag))
+      .filter((a) => tag === '全部' || specialDispose(tag, a.groupTags))
       .filter((i) => !(i.chatdata.lastMessage || i.chatdata.recently))
       .sort((a, b) => {
         var num = (b.chatdata.isToping ? 10 : 0) - (a.chatdata.isToping ? 10 : 0);
@@ -58,8 +76,8 @@ const ChatSelect: React.FC<{ onSelected: (chat: ISession) => void }> = ({
   return (
     <DirectoryViewer
       extraTags={false}
-      height={'calc(100% - 100px)'}
-      initTags={['全部', '好友', '同事', '群聊']}
+      height={'calc(100% - 90px)'}
+      initTags={['全部', '好友', '群组', '同事', '单位']}
       selectFiles={[]}
       content={chats}
       badgeCount={(tag) =>

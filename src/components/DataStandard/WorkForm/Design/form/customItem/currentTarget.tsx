@@ -17,6 +17,9 @@ const CurrentTargetItem: React.FC<CurrentTargetItemProps> = (props) => {
     <DropDownBox
       {...props}
       readOnly
+      displayExpr={'name'}
+      valueExpr={'id'}
+      dataSource={[{ ...selectTarget }]}
       showClearButton={false}
       value={selectTarget?.id}
       fieldRender={() => {

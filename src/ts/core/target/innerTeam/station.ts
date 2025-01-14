@@ -39,7 +39,7 @@ export class Station extends Team implements IStation {
   identitys: schema.XIdentity[] = [];
   private _identityLoaded: boolean = false;
   async loadIdentitys(reload?: boolean | undefined): Promise<schema.XIdentity[]> {
-    if (!this._identityLoaded || reload) {
+    if (this.isMyTeam && (!this._identityLoaded || reload)) {
       const res = await kernel.queryTeamIdentitys({
         id: this.id,
         page: PageAll,
@@ -110,8 +110,9 @@ export class Station extends Team implements IStation {
     return success;
   }
   async deepLoad(reload: boolean = false): Promise<void> {
-    await this.loadIdentitys(reload);
-    this.loadMembers(reload);
+    if (this.isMyTeam) {
+      await this.loadIdentitys(reload);
+    }
   }
   createTarget(_data: model.TargetModel): Promise<ITeam | undefined> {
     return new Promise((resolve) => {
@@ -175,6 +176,7 @@ export class Station extends Team implements IStation {
       onlyTarget: onlyTarget === true,
       ignoreSelf: ignoreSelf === true,
       targetId: targetId ?? this.id,
+      targetType: 'target',
     });
     return res.success;
   }

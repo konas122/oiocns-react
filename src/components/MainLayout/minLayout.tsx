@@ -13,6 +13,7 @@ type MinLayoutType = {
   children?: React.ReactNode; // 子组件
   siderMenuData: MenuItemType;
   selectMenu: MenuItemType;
+  height?: number;
   onSelect?: (item: MenuItemType) => void;
   onMenuClick?: (item: MenuItemType, menuKey: string) => void;
 };
@@ -89,6 +90,7 @@ const MinLayout: React.FC<MinLayoutType> = (props) => {
               item={parentMenu}
               collapsed={false}
               selectMenu={props.selectMenu}
+              height={props.height}
               onSelect={(item) => {
                 onSelectClick(item);
               }}

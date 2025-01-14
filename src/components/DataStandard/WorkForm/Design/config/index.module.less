@@ -1,0 +1,48 @@
+.print-preview {
+  border: 1px solid #ccc;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 8px;
+  .print-preview-top {
+    display: flex;
+    overflow-y: scroll;
+  }
+  .print-preview-bottom {
+    margin-top: 3px;
+    display: flex;
+    justify-content: center;
+  }
+  .print-list {
+    padding-left: 12px;
+  }
+}
+
+.print-code-config {
+  display: flex;
+  align-items: flex-start;
+  .print-code-content {
+    display: flex;
+    flex-wrap: wrap;
+    .print-code-content-data {
+      display: flex;
+      flex-wrap: wrap;
+    }
+    .print-code-content-comp {
+      margin-top: 8px;
+    }
+    .print-code-list {
+      display: flex;
+      margin-left: 12px;
+      .print-code-closeicon {
+        margin-left: 12px;
+        color: rgb(21, 74, 216);
+      }
+    }
+  }
+  .print-code-plusicon {
+    font-size: 20px;
+    color: rgb(21, 74, 216);
+    margin-top: 6px;
+  }
+}

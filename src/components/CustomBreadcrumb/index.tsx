@@ -74,7 +74,7 @@ const CustomBreadcrumb = (props: CustomBreadcrumbType) => {
               {item.tag &&
                 item.tag.map((tag) => {
                   return (
-                    <Tag key={tag} color="success">
+                    <Tag key={tag} color="processing">
                       {tag}
                     </Tag>
                   );

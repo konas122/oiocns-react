@@ -1,0 +1,118 @@
+
+@table-border: 1px solid black;
+
+.document-table {
+  position: relative;
+
+  > table {
+    // 全部
+    &.is-border--all {
+      border-top: @table-border;
+      border-left: @table-border;
+
+      td {
+        border-right: @table-border;
+        border-bottom: @table-border;
+      }
+    }
+
+    // 无
+    &.is-border--none {
+      border: none;
+    }
+
+    // 外框
+    &.is-border--outline {
+      border: @table-border;
+    }
+
+    // 行
+    &.is-border--row {
+      border-top: @table-border;
+      border-left: @table-border;
+      border-right: @table-border;
+
+      td {
+        border-bottom: @table-border;
+      }
+    }
+
+
+  }
+
+  &.is-design {
+    td {
+      .element-wrapper > .document-property-value {
+        display: block;
+        width: 100%;
+        text-align: center;
+      }
+    }
+  }
+}
+
+.document-table + .document-table, 
+.document-table + .document-list-table, 
+.document-list-table + .document-table, 
+.document-list-table + .document-list-table {
+  > table {
+    border-top: none;
+  }
+}
+
+.document-list-table {
+  position: relative;
+
+  .loading-spin {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 100%;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    opacity: 0.6;
+    background-color: white;
+  }
+  
+  > table {
+    border-top: @table-border;
+    border-left: @table-border;
+
+    td, th {
+      border-right: @table-border;
+      border-bottom: @table-border;
+    }
+
+    
+  }
+}
+
+[class^=document-] {
+  > table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+
+    tr {
+      page-break-inside: avoid;
+    }
+
+    th {
+      font-weight: bold;
+      text-align: center;
+    }
+
+    td, th {
+      padding: 4px 8px;
+      > .cell {
+        min-height: 24px;
+        white-space: normal;
+        word-break: break-all;
+      }
+    }
+  }
+}

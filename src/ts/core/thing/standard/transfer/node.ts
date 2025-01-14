@@ -3,6 +3,7 @@ import { kernel, model, schema } from '../../../../base';
 import { formatDate, generateUuid, sleep } from '../../../../base/common';
 import { IWork } from '../../../work';
 import { IForm } from '../form';
+import { IPrint } from '../print';
 import { ITask, VisitedData } from './task';
 
 /** 每个节点抽象 */
@@ -206,14 +207,20 @@ export class StoreNode extends Node<model.Store> {
             after: [],
             formName: form.name,
             nodeId: this.work.node.id,
-            creator: apply.belong.userId,
+            creator: apply.target.userId,
             createTime: formatDate(new Date(), 'yyyy-MM-dd HH:mm:ss.S'),
             rules: [],
           };
           for (const item of data[key]) {
             if (!item.id) {
-              const thing = await kernel.createThing(apply.belong.id, [], form.name);
-              Object.assign(item, thing.data);
+              const result = await kernel.createThing(
+                apply.target.spaceId,
+                [],
+                form.name,
+              );
+              if (result.data.length > 0) {
+                Object.assign(item, result.data[0]);
+              }
             }
             editForm.after.push(item);
           }
@@ -221,7 +228,7 @@ export class StoreNode extends Node<model.Store> {
         }
       }
     }
-    await apply.createApply(apply.belong.id, '自动写入', new Map());
+    await apply.createApply(apply.target.spaceId, '自动写入', new Map());
     return data;
   }
 }
@@ -301,6 +308,42 @@ export class FormNode extends Node<model.Form> {
     });
   }
 }
+export class PrintNode extends Node<model.Print> {
+  constructor(task: ITask, node: model.Print) {
+    super(task, node);
+    if (node.printId) {
+      this.print = task.transfer.prints[node.printId];
+    }
+  }
+  print?: IPrint;
+
+  async function(): Promise<{ [key: string]: any }> {
+    return new Promise((resolve, reject) => {
+      try {
+        if (!this.print) {
+          throw new Error('未获取到打印模板信息！');
+        }
+        const id = this.command.subscribe((type, cmd, args) => {
+          if (type == 'data' && cmd == 'inputCall') {
+            const data: { [key: string]: any } = {};
+            for (const key in args) {
+              for (const field of this.print!.fields) {
+                if (field.id == key) {
+                  data[field.name] = args[key];
+                }
+              }
+            }
+            this.command.unsubscribe(id);
+            resolve(data);
+          }
+        });
+        this.command.emitter('data', 'input', this.print);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+}
 
 export function createNode(task: ITask, node: model.Node): INode {
   switch (node.typeName) {
@@ -312,6 +355,8 @@ export function createNode(task: ITask, node: model.Node): INode {
       return new MappingNode(task, node as model.Mapping);
     case '表单':
       return new FormNode(task, node as model.Form);
+    case '打印模板':
+      return new PrintNode(task, node as model.Print);
     case '表格':
       return new TablesNode(task, node as model.Tables);
     case '请求':
@@ -325,6 +370,14 @@ export const getDefaultFormNode = (): model.Form => {
     code: 'form',
     name: '表单',
     typeName: '表单',
+  };
+};
+export const getDefaultPrintNode = (): model.Print => {
+  return {
+    id: generateUuid(),
+    code: 'print',
+    name: '打印模板',
+    typeName: '打印模板',
   };
 };
 

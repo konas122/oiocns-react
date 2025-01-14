@@ -1,0 +1,54 @@
+.workstart-default {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  flex-direction: column;
+  .workstart--toolbar {
+    display: flex;
+    position: relative;
+    padding: 9px 12px 6px;
+    align-items: center;
+    border: 1px solid #e7e8eb;
+    gap: 10px;
+    border-radius: 5px;
+    .examineContent {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      .examineInput {
+        flex: 1;
+      }
+    }
+  }
+  .workstart-content {
+    display: flex;
+    height: 1px;
+    flex-grow: 1;
+    .workstart-content-left {
+      flex-shrink: 0;
+      margin-top: 10px;
+    }
+    .workstart-content-right {
+      display: flex;
+      flex-direction: column;
+      width: 1px;
+      flex-grow: 1;
+      overflow: auto;
+      position: relative;
+      > .loading-spin {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        width: 100%;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        opacity: 0.6;
+        background-color: white;
+      }
+    }
+  }
+}

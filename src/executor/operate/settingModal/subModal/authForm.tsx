@@ -1,8 +1,9 @@
-import React from 'react';
-import { ProFormColumnsType } from '@ant-design/pro-components';
+import React, { useRef } from 'react';
+import { ProFormColumnsType, ProFormInstance } from '@ant-design/pro-components';
 import SchemaForm from '@/components/SchemaForm';
 import { IAuthority } from '@/ts/core';
 import UploadItem from '../../../tools/uploadItem';
+import { generateCodeByInitials } from '@/utils/tools';
 
 interface Iprops {
   title: string;
@@ -16,6 +17,7 @@ interface Iprops {
 */
 const createAuthority = (props: Iprops) => {
   if (!props.open) return <></>;
+  const formRef = useRef<ProFormInstance>();
   const columns: ProFormColumnsType<any>[] = [
     {
       title: '图标',
@@ -95,6 +97,7 @@ const createAuthority = (props: Iprops) => {
   ];
   return (
     <SchemaForm
+      formRef={formRef}
       title={
         props.title.includes('编辑') ? `编辑[${props.current.name}]权限` : '新增权限'
       }
@@ -108,6 +111,11 @@ const createAuthority = (props: Iprops) => {
       onOpenChange={(open: boolean) => {
         if (!open) {
           props.handleCancel();
+        }
+      }}
+      onValuesChange={async (values: any) => {
+        if (Object.keys(values)[0] === 'name') {
+          formRef.current?.setFieldValue('code', generateCodeByInitials(values['name']));
         }
       }}
       onFinish={async (values) => {

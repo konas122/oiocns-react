@@ -8,7 +8,7 @@ export default {
     this.show(msg, 'warning');
   },
   error(msg: string) {
-    this.show(msg, 'error', 2000);
+    this.show(msg, 'error', 3000);
   },
   show(message: string, type: string, displayTime?: number) {
     Notify(
@@ -16,7 +16,7 @@ export default {
         message: message,
         width: 500,
         type: type,
-        displayTime: displayTime ?? 1000,
+        displayTime: displayTime ?? 2000,
         animation: {
           show: {
             type: 'fade',

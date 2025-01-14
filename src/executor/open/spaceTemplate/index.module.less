@@ -1,0 +1,223 @@
+.cardInfo {
+  width: 100%;
+  padding: 16px 24px;
+  background-color: #fff;
+  .header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 40px;
+    .title {
+      height: 20px;
+      line-height: 20px;
+      color: #15181d;
+      border-left: 4px #366ef4 solid;
+      font-size: 16px;
+      font-weight: 500;
+      padding-left: 8px;
+    }
+  }
+}
+.space {
+  width: 100%;
+  :global(.ogo-space-item) {
+    width: 100%;
+  }
+}
+
+.pagination {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.listItem {
+  border-radius: 8px;
+  font-weight: 500;
+  margin-top: 16px;
+  width: 245px;
+  .productImg {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    height: 240px;
+    line-height: 24px;
+    color: #15181d;
+    font-size: 14px;
+    .ant-skeleton-image {
+      width: 100%;
+    }
+  }
+  .productInfo {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    max-height: 100px;
+    font-size: 12px;
+    color: #6f7686;
+    font-weight: 400;
+    background-color: #fff;
+    margin-top: 4px;
+    .title {
+      color: #15181d;
+      font-size: 13px;
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .introduce {
+      font-size: 12px;
+      color: #424A57;
+      font-weight: 500;
+    }
+  }
+  .detail {
+    cursor: pointer;
+    width: 100%;
+  }
+
+  .footer {
+    width: 100%;
+    height: 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    .purchaseInfo {
+      .price {
+        color: #15181d;
+        font-size: 16px;
+      }
+      .buyersNum {
+        font-size: 10px;
+        color: #6f7686;
+        margin-left: 8px;
+      }
+    }
+    .purchaseControls {
+      min-width: 100px;
+      color: #366ef4;
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      .purchaseNow {
+        height: 22px;
+        display: flex;
+        align-items: center;
+        &:hover {
+          cursor: pointer;
+        }
+      }
+      .purchaseCar {
+        cursor: pointer;
+        margin-left: 20px;
+      }
+      .purchase {
+        margin-left: 4px;
+      }
+    }
+  }
+}
+
+.dataSharing {
+  padding: 0px 20px;
+  overflow-y: auto;
+  .content {
+    width: 100%;
+    display: flex;
+    margin-top: 12px;
+    .tab {
+      width: 284px;
+      padding-right: 24px;
+    }
+    .productList {
+      flex: 1;
+      flex-wrap: wrap;
+    }
+  }
+  .extra {
+    height: 20px;
+    display: flex;
+    align-items: center;
+    line-height: 20px;
+    font-size: 14px;
+    font-weight: 400;
+    &:hover {
+      color: #366ef4;
+      cursor: pointer;
+    }
+  }
+}
+
+.rightCar {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .products {
+    flex: 1;
+    overflow: scroll;
+    :global(.ogo-pro-list-row-header) {
+      flex: 0 1 auto;
+    }
+  }
+  .bottomSum {
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    bottom: 0;
+    > * {
+      flex: 1;
+      text-align: center;
+    }
+    .buttons {
+      flex: 2;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      > * {
+        flex: 1
+      }
+    }
+  }
+}
+
+.carItem {
+  display: flex;
+  width: 100%;
+  margin-top: 12px;
+  .image {
+    display: flex;
+    justify-content: center;
+    width: 80px;
+    height: 80px;
+    line-height: 24px;
+    color: #15181d;
+    font-size: 14px;
+    .ant-skeleton-image {
+      width: 100%;
+    }
+  }
+  .content {
+    margin-left: 10px;
+    display: flex;
+    flex-direction: column;
+    .title {
+      display: flex;
+      justify-content: space-between;
+      font-weight: bold;
+    }
+    .tag {
+      margin-left: 10px;
+    }
+    .remark {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #666666;
+    }
+    .amount {
+      font-weight: bold;
+    }
+  }
+}

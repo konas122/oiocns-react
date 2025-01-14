@@ -7,8 +7,10 @@ import { IDepartment, IGroup, ITarget, IDirectory, IApplication, IWork } from '@
 import { findMenuItemByKey } from '@/utils/tools';
 
 /** 创建团队菜单 */
-const createMenu = (target: ITarget, children: MenuItemType[]) => {
-  children.unshift(...buildApplicationTree(target.directory.standard.applications));
+const createMenu = (target: ITarget, children: MenuItemType[], typeNames: string[]) => {
+  if (typeNames.includes('应用')) {
+    children.unshift(...buildApplicationTree(target.directory.standard.applications));
+  }
   return {
     key: target.directory.key,
     item: target.directory,
@@ -16,32 +18,49 @@ const createMenu = (target: ITarget, children: MenuItemType[]) => {
     itemType: target.directory.typeName,
     menus: loadFileMenus(target.directory),
     tag: [target.typeName],
-    icon: <EntityIcon notAvatar={true} entityId={target.id} size={18} />,
+    icon: <EntityIcon entityId={target.id} size={18} />,
     children: children,
   };
 };
 /** 编译部门树 */
-const buildDepartmentTree = (departments: IDepartment[]): MenuItemType[] => {
-  return departments.map((item) =>
-    createMenu(item, [
-      ...buildDirectoryTree(item.directory.children),
-      ...buildDepartmentTree(item.children),
-    ]),
-  );
+const buildDepartmentTree = (
+  departments: IDepartment[],
+  typeNames: string[],
+): MenuItemType[] => {
+  return departments.map((item) => {
+    let dir: MenuItemType[] = [];
+    if (typeNames.includes('目录')) {
+      dir = buildDirectoryTree(item.directory.children, typeNames);
+    }
+    return createMenu(
+      item,
+      [...dir, ...buildDepartmentTree(item.children, typeNames)],
+      typeNames,
+    );
+  });
 };
 /** 编译组织集群树 */
-const buildGroupTree = (groups: IGroup[]): MenuItemType[] => {
-  return groups.map((item) =>
-    createMenu(item, [
-      ...buildDirectoryTree(item.directory.children),
-      ...buildGroupTree(item.children),
-    ]),
-  );
+const buildGroupTree = (groups: IGroup[], typeNames: string[]): MenuItemType[] => {
+  return groups.map((item) => {
+    let dir: MenuItemType[] = [];
+    if (typeNames.includes('目录')) {
+      dir = buildDirectoryTree(item.directory.children, typeNames);
+    }
+    const groupTreeItems = buildGroupTree(item.children, typeNames);
+    return createMenu(item, [...dir, ...groupTreeItems], typeNames);
+  });
 };
 
 /** 编译目录树 */
-const buildDirectoryTree = (directorys: IDirectory[]): MenuItemType[] => {
+const buildDirectoryTree = (
+  directorys: IDirectory[],
+  typeNames: string[],
+): MenuItemType[] => {
   return directorys.map((directory) => {
+    let children: MenuItemType[] = buildDirectoryTree(directory.children, typeNames);
+    if (typeNames.includes('应用')) {
+      children = [...children, ...buildApplicationTree(directory.standard.applications)];
+    }
     return {
       key: directory.key,
       item: directory,
@@ -52,10 +71,7 @@ const buildDirectoryTree = (directorys: IDirectory[]): MenuItemType[] => {
       ),
       itemType: directory.typeName,
       menus: loadFileMenus(directory),
-      children: [
-        ...buildDirectoryTree(directory.children),
-        ...buildApplicationTree(directory.standard.applications),
-      ],
+      children: children,
     };
   });
 };
@@ -114,43 +130,76 @@ const buildApplicationTree = (applications: IApplication[]): MenuItemType[] => {
 };
 
 /** 获取个人菜单 */
-const getUserMenu = (allowInherited: boolean) => {
-  return createMenu(orgCtrl.user, [
-    ...buildDirectoryTree(orgCtrl.user.directory.children),
-    ...orgCtrl.user.cohorts
-      .filter((i) => !i.isInherited || allowInherited)
-      .map((i) => createMenu(i, buildDirectoryTree(i.directory.children))),
-  ]);
+const getUserMenu = (allowInherited: boolean, typeNames: string[]) => {
+  return createMenu(
+    orgCtrl.user,
+    [
+      ...buildDirectoryTree(orgCtrl.user.directory.children, typeNames),
+      ...orgCtrl.user.cohorts
+        .filter((i) => !i.isInherited || allowInherited)
+        .map((i) =>
+          createMenu(i, buildDirectoryTree(i.directory.children, typeNames), typeNames),
+        ),
+    ],
+    typeNames,
+  );
 };
 
 /** 获取组织菜单 */
-const getTeamMenu = (allowInherited: boolean) => {
+const getTeamMenu = (allowInherited: boolean, typeNames: string[]) => {
   const children: MenuItemType[] = [];
   for (const company of orgCtrl.user.companys) {
+    let dirTree: MenuItemType[] = [];
+    if (typeNames.includes('目录')) {
+      dirTree.push(...buildDirectoryTree(company.directory.children, typeNames));
+    }
     children.push(
-      createMenu(company, [
-        ...buildDirectoryTree(company.directory.children),
-        ...buildDepartmentTree(company.departments),
-        ...buildGroupTree(company.groups.filter((i) => !i.isInherited || allowInherited)),
-        ...company.cohorts.map((i) =>
-          createMenu(i, buildDirectoryTree(i.directory.children)),
-        ),
-      ]),
+      createMenu(
+        company,
+        [
+          ...dirTree,
+          ...buildDepartmentTree(company.departments, typeNames),
+          ...buildGroupTree(
+            company.groups.filter((i) => !i.isInherited || allowInherited),
+            typeNames,
+          ),
+          ...company.cohorts.map((i) =>
+            createMenu(i, buildDirectoryTree(i.directory.children, typeNames), typeNames),
+          ),
+          ...company.storages.map((i) =>
+            createMenu(i, buildDirectoryTree(i.directory.children, typeNames), typeNames),
+          ),
+        ],
+        typeNames,
+      ),
     );
   }
   return children;
 };
 
 /** 加载设置模块菜单 */
-export const loadSettingMenu = (rootKey: string, allowInherited: boolean) => {
-  const rootMenu = {
+export const loadSettingMenu = (
+  rootKey: string,
+  allowInherited: boolean,
+  typeNames?: string[],
+) => {
+  if (!typeNames) {
+    typeNames = ['人员', '单位', '目录', '应用'];
+  }
+  const rootMenu: MenuItemType = {
     key: '根目录',
     label: '根目录',
     itemType: 'Tab',
     item: 'disk',
-    children: [getUserMenu(allowInherited), ...getTeamMenu(allowInherited)],
-    icon: <EntityIcon notAvatar={true} entityId={orgCtrl.user.id} size={18} />,
+    children: [],
+    icon: <EntityIcon entityId={orgCtrl.user.id} size={18} />,
   };
+  if (typeNames?.includes('人员')) {
+    rootMenu.children.push(getUserMenu(allowInherited, typeNames));
+  }
+  if (typeNames?.includes('单位')) {
+    rootMenu.children.push(...getTeamMenu(allowInherited, typeNames));
+  }
   const findMenu = findMenuItemByKey(rootMenu, rootKey);
   if (findMenu) {
     findMenu.parentMenu = undefined;

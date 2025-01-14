@@ -1,5 +1,5 @@
 import { Layout } from 'antd';
-import React from 'react';
+import React, { ReactNode } from 'react';
 import { Resizable } from 'devextreme-react';
 import useStorage from '@/hooks/useStorage';
 import EntityPreview from './preview';
@@ -11,6 +11,7 @@ const { Content, Sider } = Layout;
 type AppLayoutType = {
   previewFlag?: string;
   children?: React.ReactNode; // 子组件
+  emptyCompent?: ReactNode;
 };
 
 /**
@@ -22,8 +23,8 @@ type AppLayoutType = {
 const AppLayout: React.FC<AppLayoutType> = (props) => {
   const [mainWidth, setMainWidth] = useStorage<string | number>('mainWidth', '40%');
   const previewCtx = React.useMemo(() => {
-    return <EntityPreview flag={props.previewFlag} />;
-  }, [props]);
+    return <EntityPreview flag={props.previewFlag} emptyCompent={props.emptyCompent} />;
+  }, []);
   return (
     <Layout className={'main_layout'}>
       <Layout className={'body'}>

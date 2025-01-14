@@ -1,0 +1,129 @@
+.task {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.info {
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 8px;
+  :global(.ogo-tag) {
+    margin-right: 0;
+  }
+}
+
+.title {
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.content {
+  height: 1px;
+  flex: auto;
+  width: 100%;
+  display: flex;
+  position: relative;
+  > :global(.dx-resizable) {
+    height: 100%;
+  }
+
+  .loading-spin {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 100%;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    opacity: 0.6;
+    background-color: white;
+  }
+
+  .work-wrap {
+    width: 1px;
+    height: 100%;
+    overflow: auto;
+    flex: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .left-content {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    > :global(.dx-resizable) {
+      height: 1px;
+      flex: auto;
+      margin-bottom: 40px;
+    }
+
+    &:global(.is-collapsed) {
+      > :global(.dx-resizable) {
+        display: none;
+      }
+    }
+
+    .expand-btn {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      z-index: 200;
+    }
+  }
+
+  .tree-wrap {
+    height: 100%;
+    width: 100%;
+    padding: 16px 8px;
+    display: flex;
+    flex-direction: column;
+    .tree-content {
+      height: 1px;
+      flex: auto;
+      width: 100%;
+      overflow-y: auto;
+      :global(.ogo-tree) {
+        width: 100%;
+      }
+    }
+    .tree-tags {
+      width: 100%;
+      display: flex;
+      gap: 8px;
+      .tag-wrap {
+        display: flex;
+        flex-direction: column;
+        background-color: #F0F0F0;
+      }
+      .tag {
+        width: 90px;
+        cursor: pointer;
+        display: flex;
+        flex-wrap: wrap;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+        padding: 4px 8px;
+        border-radius: 6px;
+        border-width: 1px;
+        &.is-small {
+          flex-wrap: nowrap;
+          flex-direction: row;
+          text-align: left;
+          justify-content: space-between;
+          padding: 2px 6px;
+          font-size: 12px;
+        }
+      }
+    }
+  }
+}

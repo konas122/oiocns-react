@@ -1,0 +1,48 @@
+
+@input-cell-background: #F1FAF1;
+@input-cell-color: #15181D;
+@computed-cell-background: #F2F3FF;
+@computed-cell-color: #366EF4;
+
+@input-cell-background--readonly: #F0FAF0;
+@computed-cell-background--readonly: #F2F3FF;
+
+.report-form-viewer {
+  > .handsontable {
+    min-height: 630px;
+  }
+  .handsontable {
+    * {
+      &.is-readonly {
+        cursor: not-allowed;
+      }
+
+      &.is-input {
+        background: @input-cell-background;
+        color: @input-cell-color;
+        padding: 0 10px;
+        &.is-readonly {
+          background: @input-cell-background--readonly;
+          color: @input-cell-color;
+          padding: 0 10px;
+        }
+      }
+      &.is-computed {
+        background: @computed-cell-background;
+        color: @computed-cell-color;
+        padding: 0 10px;
+        &.is-readonly {
+          background: @computed-cell-background--readonly;
+          color: @computed-cell-color;
+          padding: 0 10px;
+        }
+      }
+
+    }
+  }
+  .handsontable td{
+    border-bottom: 1px solid #E7E8EB;
+    border-right: 1px solid #E7E8EB;
+  }
+
+}

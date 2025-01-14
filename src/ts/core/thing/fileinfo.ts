@@ -5,6 +5,10 @@ import { Entity, IEntity, directoryOperates, entityOperates } from '../public';
 import { fileOperates } from '../public';
 import { XCollection } from '../public/collection';
 import { ITarget } from '../target/base/target';
+import { IRecorder, Recorder } from './recorder';
+import { changeManager } from '../public/operates';
+import { IBelong } from '../target/base/belong';
+
 /** 默认文件接口 */
 export interface IFile extends IFileInfo<schema.XEntity> {}
 /** 文件类接口 */
@@ -15,6 +19,8 @@ export interface IFileInfo<T extends schema.XEntity> extends IEntity<T> {
   spaceId: string;
   /** 归属ID */
   belongId: string;
+  /** 源ID */
+  sourceId?: string;
   /** 是否为继承的类别 */
   isInherited: boolean;
   /** 是否允许设计 */
@@ -27,6 +33,10 @@ export interface IFileInfo<T extends schema.XEntity> extends IEntity<T> {
   superior: IFile;
   /** 路径Key */
   locationKey: string;
+  /** 路径 */
+  path: string[];
+  /** 记录者 */
+  recorder: IRecorder<T>;
   /** 撤回已删除 */
   restore(): Promise<boolean>;
   /** 删除文件系统项 */
@@ -53,7 +63,9 @@ export interface IFileInfo<T extends schema.XEntity> extends IEntity<T> {
   /** 目录下的内容 */
   content(args?: boolean): IFile[];
   /** 缓存用户数据 */
-  cacheUserData(notify?: boolean): Promise<boolean>;
+  cacheUserData(notify?: boolean, isCompany?: boolean): Promise<boolean>;
+  /** 常用标签切换 */
+  toggleCommon(isCompany?: boolean): Promise<boolean>;
 }
 /** 文件类抽象实现 */
 export abstract class FileInfo<T extends schema.XEntity>
@@ -64,16 +76,20 @@ export abstract class FileInfo<T extends schema.XEntity>
     super(_metadata, [_metadata.typeName]);
     this.directory = _directory;
     this.cache = { fullId: `${this.spaceId}_${_metadata.id}` };
-    setTimeout(
-      async () => {
-        await this.loadUserData();
-      },
-      this.id === this.userId ? 100 : 0,
-    );
+    this.companyCache = { fullId: `${this.spaceId}_${_metadata.id}` };
+    this.recorder = new Recorder<T>(this);
+    this.path = [...(_directory?.path ?? []), _metadata.id];
+    this.loadUserData(this.target.user, false);
+    if (this.userId != this.spaceId) {
+      this.loadUserData(this.target.space, true);
+    }
   }
+  path: string[];
   cache: schema.XCache;
   directory: IDirectory;
   canDesign: boolean = false;
+  recorder: IRecorder<T>;
+  companyCache: schema.XCache;
   get isInherited(): boolean {
     return this.directory.isInherited;
   }
@@ -92,6 +108,9 @@ export abstract class FileInfo<T extends schema.XEntity>
   }
   get spaceId(): string {
     return this.target.spaceId;
+  }
+  get sourceId() {
+    return this.metadata.sourceId;
   }
   get locationKey(): string {
     return this.directory.key;
@@ -124,26 +143,79 @@ export abstract class FileInfo<T extends schema.XEntity>
     await sleep(0);
     return true;
   }
-  async loadUserData(): Promise<void> {
-    const data = await this.target.user.cacheObj.get<schema.XCache>(this.cachePath);
-    if (data && data.fullId === this.cache.fullId) {
-      this.cache = data;
+  async loadUserData(space: IBelong, isCompany: boolean): Promise<void> {
+    if (!space.cacheObj || !space.cacheObj.loaded) {
+      await sleep(100);
+      return this.loadUserData(space, isCompany);
     }
-    this.target.user.cacheObj.subscribe(this.cachePath, (data: schema.XCache) => {
-      if (data && data.fullId === this.cache.fullId) {
+    const data = await space.cacheObj.get<schema.XCache>(this.cachePath);
+    if (data && data.fullId === this.cache.fullId) {
+      if (isCompany) {
+        this.companyCache = data;
+      } else {
         this.cache = data;
-        this.target.user.cacheObj.setValue(this.cachePath, data);
+      }
+    }
+    space.cacheObj.subscribe(this.cachePath, (data: schema.XCache) => {
+      if (data && data.fullId === this.cache.fullId) {
+        if (isCompany) {
+          this.companyCache = data;
+        } else {
+          this.cache = data;
+        }
+        space.cacheObj.setValue(this.cachePath, data);
         this.superior.changCallback();
         command.emitterFlag(this.cacheFlag);
       }
     });
   }
-  async cacheUserData(notify: boolean = true): Promise<boolean> {
-    const success = await this.target.user.cacheObj.set(this.cachePath, this.cache);
+  async cacheUserData(
+    notify: boolean = true,
+    isCompany: boolean = false,
+  ): Promise<boolean> {
+    const cache = isCompany ? this.companyCache : this.cache;
+    const target = isCompany ? this.target.space : this.target.user;
+    const success = await target.cacheObj.set(this.cachePath, cache);
     if (success && notify) {
-      await this.target.user.cacheObj.notity(this.cachePath, this.cache, true, false);
+      await target.cacheObj.notity(this.cachePath, cache, true, false);
     }
     return success;
+  }
+
+  public async toggleCommon(isCompany: boolean = false): Promise<boolean> {
+    let set: boolean = false;
+    const tags = (isCompany ? this.companyCache.tags : this.cache.tags) ?? [];
+    const target = isCompany ? this.target.space : this.target.user;
+    if (tags.includes('常用')) {
+      if (isCompany) {
+        this.companyCache.tags = tags.filter((i) => i != '常用');
+      } else {
+        this.cache.tags = tags.filter((i) => i != '常用');
+      }
+    } else {
+      if (isCompany) {
+        this.companyCache.tags = [...tags, '常用'];
+      } else {
+        this.cache.tags = [...tags, '常用'];
+      }
+      set = true;
+    }
+    const success = await this.cacheUserData(true, isCompany);
+    if (success) {
+      return await target.updateCommon(
+        {
+          id: this.id,
+          spaceId: this.spaceId,
+          targetId: this.target.id,
+          directoryId: this.directory.id,
+          applicationId: this.superior.id,
+          groupName: '',
+          typeName: this.typeName,
+        },
+        set,
+      );
+    }
+    return false;
   }
 
   async loadContent(reload: boolean = false): Promise<boolean> {
@@ -154,11 +226,8 @@ export abstract class FileInfo<T extends schema.XEntity>
   }
   operates(): model.OperateModel[] {
     const operates = super.operates();
-    if (this.target.space.hasRelationAuth()) {
-      operates.unshift(fileOperates.Copy);
-    }
+    operates.unshift(fileOperates.Copy);
     if (this.target.hasRelationAuth()) {
-      !operates.includes(fileOperates.Copy) && operates.unshift(fileOperates.Copy);
       operates.unshift(
         fileOperates.Move,
         fileOperates.Rename,
@@ -184,14 +253,10 @@ export interface IStandardFileInfo<T extends schema.XStandard> extends IFileInfo
   update(data: T): Promise<boolean>;
   /** 接收通知 */
   receive(operate: string, data: schema.XStandard): boolean;
-  /** 常用标签切换 */
-  toggleCommon(): Promise<boolean>;
-  /**
-   * 创建快捷方式
-   * @param newName 新的实体名称，不传使用原来的
-   */
+  /** 创建快捷方式 */
   createShortcut(newName?: string): Promise<boolean>;
 }
+
 export interface IStandard extends IStandardFileInfo<schema.XStandard> {}
 export abstract class StandardFileInfo<T extends schema.XStandard>
   extends FileInfo<T>
@@ -211,13 +276,21 @@ export abstract class StandardFileInfo<T extends schema.XStandard>
     return this._metadata;
   }
   allowCopy(destination: IDirectory): boolean {
-    return this.target.belongId != destination.target.belongId;
+    return this.isSpanBelong(destination);
   }
   allowMove(destination: IDirectory): boolean {
-    return (
-      destination.id != this.directory.id &&
-      destination.target.belongId == this.target.belongId
-    );
+    return destination.id != this.directory.id && this.isSameBelong(destination);
+  }
+  isSameBelong(destination: IDirectory) {
+    if (this.target.belongId == destination.target.belongId) {
+      let thisStoreId = this.target.storeId || this.target.space.storeId;
+      let destStoreId = destination.target.storeId || destination.target.space.storeId;
+      return thisStoreId == destStoreId;
+    }
+    return false;
+  }
+  isSpanBelong(destination: IDirectory) {
+    return !this.isSameBelong(destination);
   }
   async update(data: T): Promise<boolean> {
     const result = await this.coll.replace({
@@ -227,25 +300,36 @@ export abstract class StandardFileInfo<T extends schema.XStandard>
       typeName: this.metadata.typeName,
     });
     if (result) {
+      await this.recorder.update({ coll: this.coll, next: result });
       await this.notify('replace', result);
       return true;
     }
     return false;
   }
-  async delete(): Promise<boolean> {
+  async delete(notify: boolean = true): Promise<boolean> {
     if (this.directory) {
       const data = await this.coll.delete(this.metadata);
       if (data) {
-        await this.notify('delete', this.metadata);
+        await this.recorder.update({
+          coll: this.coll,
+          next: { ...this.metadata, isDeleted: true },
+          notify,
+        });
+        if (notify) {
+          await this.notify('delete', this.metadata);
+        }
       }
     }
     return false;
   }
-  async hardDelete(): Promise<boolean> {
+  async hardDelete(notify: boolean = true): Promise<boolean> {
     if (this.directory) {
       const data = await this.coll.remove(this.metadata);
       if (data) {
-        await this.notify('remove', this.metadata);
+        await this.recorder.remove({ coll: this.coll, next: this.metadata, notify });
+        if (notify) {
+          await this.notify('remove', this.metadata);
+        }
       }
     }
     return false;
@@ -269,12 +353,17 @@ export abstract class StandardFileInfo<T extends schema.XStandard>
     }
     return false;
   }
-  async moveTo(directoryId: string, coll: XCollection<T> = this.coll): Promise<boolean> {
+  async moveTo(dest: IDirectory, coll: XCollection<T> = this.coll): Promise<boolean> {
     const data = await coll.replace({
       ...this.metadata,
-      directoryId: directoryId,
+      directoryId: dest.id,
     });
     if (data) {
+      await this.recorder.moving({
+        coll,
+        destination: dest,
+        next: data,
+      });
       await this.notify('remove', this.metadata);
       return await coll.notity({
         data: data,
@@ -298,36 +387,39 @@ export abstract class StandardFileInfo<T extends schema.XStandard>
       operate: 'insert',
     });
   }
-  async toggleCommon(): Promise<boolean> {
-    let set: boolean = false;
-    if (this.cache.tags?.includes('常用')) {
-      this.cache.tags = this.cache.tags?.filter((i) => i != '常用');
-    } else {
-      set = true;
-      this.cache.tags = this.cache.tags ?? [];
-      this.cache.tags.push('常用');
-    }
-    const success = await this.cacheUserData();
-    if (success) {
-      return await this.target.user.toggleCommon(
-        {
-          id: this.id,
-          spaceId: this.spaceId,
-          targetId: this.target.id,
-          directoryId: this.metadata.directoryId,
-          applicationId: this.superior.id,
-        },
-        set,
-      );
-    }
-    return false;
-  }
+
   override operates(): model.OperateModel[] {
     const operates = super.operates();
+    if (this.userId != this.spaceId && this.target.space.hasRelationAuth()) {
+      if (
+        [
+          '应用',
+          '模块',
+          '办事',
+          '集群模板',
+          '表单',
+          '视图',
+          '报表',
+          '任务',
+          '打印模板',
+          '商城模板',
+          '目录',
+        ].includes(this.typeName)
+      ) {
+        if (this.companyCache.tags?.includes('常用')) {
+          operates.unshift(fileOperates.DelCompanyCommon);
+        } else {
+          operates.unshift(fileOperates.SetCompanyCommon);
+        }
+      }
+    }
     if (this.cache.tags?.includes('常用')) {
       operates.unshift(fileOperates.DelCommon);
     } else {
       operates.unshift(fileOperates.SetCommon);
+    }
+    if (this.target.hasRelationAuth()) {
+      operates.unshift(changeManager);
     }
 
     if (this.isShortcut) {

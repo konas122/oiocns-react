@@ -21,7 +21,7 @@
     "paths": {
       "@/*": ["src/*"],
       "@cfg/*": ["config/*"]
-    }
+    },
   },
   "include": [
     "src/**/*.ts",
@@ -29,8 +29,13 @@
     "typings/*.d.ts",
     "config/**/*",
     "vite.config.ts",
-    "mock/_createProductionServer.ts",
-    "src/layouts/auth"
+    "mock/_createProductionServer.ts"
   ],
-  "exclude": ["node_modules", "build", "dist", "**/*.js"]
+  "exclude": [
+    "node_modules", 
+    "build", 
+    "dist", 
+    "**/*.js",
+    "**/*.g.d.ts"
+  ]
 }

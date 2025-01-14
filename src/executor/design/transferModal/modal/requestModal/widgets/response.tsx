@@ -1,7 +1,6 @@
+import { MonacoEditor } from '@/components/Common/MonacoEditor';
 import { ITransfer } from '@/ts/core';
 import React, { useEffect, useState } from 'react';
-import CodeMirror from '@uiw/react-codemirror';
-import { langs } from '@uiw/codemirror-extensions-langs';
 
 interface IProps {
   transfer: ITransfer;
@@ -36,15 +35,7 @@ const Response: React.FC<IProps> = ({ transfer }) => {
       transfer.command.unsubscribe(id);
     };
   });
-  return (
-    <CodeMirror
-      width={'calc(50vw - 12px)'}
-      height={'calc(100vh - 136px)'}
-      value={value}
-      extensions={[langs.json()]}
-      onChange={(value) => setValue(value)}
-    />
-  );
+  return <MonacoEditor value={value} language="json" onChange={setValue} />;
 };
 
 export default Response;

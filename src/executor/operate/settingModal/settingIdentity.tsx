@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import FullScreenModal from '@/components/Common/fullScreen';
-import { IIdentity, ITarget } from '@/ts/core';
+import { IIdentity, ITarget, TargetType } from '@/ts/core';
 import EntityIcon from '@/components/Common/GlobalComps/entityIcon';
 import MainLayout from '@/components/MainLayout/minLayout';
 import useMenuUpdate from '@/hooks/useMenuUpdate';
 import EntityInfo from '@/components/Common/EntityInfo';
-import * as im from 'react-icons/im';
 import { MenuItemType, OperateMenuType } from 'typings/globelType';
 import IdentityForm from './subModal/IdentityForm';
 import SelectMember from '@/components/Common/SelectMember';
@@ -15,6 +14,7 @@ import { schema } from '@/ts/base';
 import { PersonColumns } from '@/config/column';
 import useObjectUpdate from '@/hooks/useObjectUpdate';
 import { Controller } from '@/ts/controller';
+import OrgIcons from '@/components/Common/GlobalComps/orgIcons';
 
 interface IProps {
   target: ITarget;
@@ -31,34 +31,31 @@ const SettingIdentity: React.FC<IProps> = ({ target, finished }) => {
   const [operateKey, setOperateKey] = useState('');
   const [identity, setIdentity] = useState<IIdentity>();
   if (!selectMenu || !rootMenu) return <></>;
-
   const readerOperation = (item: schema.XTarget) => {
-    if (item.id !== target.userId) {
-      return [
-        {
-          key: 'remove',
-          label: <span style={{ color: 'red' }}>移除</span>,
-          onClick: async () => {
-            Modal.confirm({
-              title: '提示',
-              content: '确认移除该人员',
-              okText: '确认',
-              cancelText: '取消',
-              onOk: async () => {
-                await identity?.removeMembers([item]);
-                setOperateKey('');
-                refreshTable();
-              },
-            });
-          },
+    return [
+      {
+        key: 'remove',
+        label: <span style={{ color: 'red' }}>移除</span>,
+        onClick: async () => {
+          if (identity?.members.length === 1)
+            return message.info('岗位下至少要有一个成员');
+          Modal.confirm({
+            title: '提示',
+            content: '确认移除该人员',
+            okText: '确认',
+            cancelText: '取消',
+            onOk: async () => {
+              await identity?.removeMembers([item]);
+              setOperateKey('');
+              refreshTable();
+            },
+          });
         },
-      ];
-    }
-    return [];
+      },
+    ];
   };
   return (
     <FullScreenModal
-      centered
       open={true}
       fullScreen
       width={'80vw'}
@@ -129,7 +126,7 @@ const SettingIdentity: React.FC<IProps> = ({ target, finished }) => {
             </div>
             <SelectMember
               open={operateKey === '分配成员'}
-              members={target.space.members}
+              target={target}
               exclude={identity.members}
               finished={async (selected) => {
                 if (selected.length > 0) {
@@ -146,7 +143,7 @@ const SettingIdentity: React.FC<IProps> = ({ target, finished }) => {
       </MainLayout>
       {['新增', '编辑'].includes(operateKey) && (
         <IdentityForm
-          current={selectMenu.item}
+          current={operateKey == '新增' ? target : selectMenu.item}
           finished={(success) => {
             setOperateKey('');
             if (success) {
@@ -174,7 +171,7 @@ const loadSettingMenu = (target: ITarget): MenuItemType => {
         label: item.name,
         itemType: '角色',
         menus: loadMenus(item),
-        icon: <EntityIcon notAvatar={true} entity={item.metadata} size={18} />,
+        icon: <EntityIcon entity={item.metadata} size={18} />,
         children: [],
       };
     }),
@@ -190,18 +187,18 @@ const loadMenus = (item: ITarget | IIdentity) => {
       items.push(
         {
           key: '分配成员',
-          icon: <im.ImUserPlus />,
+          icon: <OrgIcons type="/operate/pullMember" />,
           label: '分配成员',
           model: 'outside',
         },
         {
           key: '编辑',
-          icon: <im.ImCog />,
+          icon: <OrgIcons type="/toolbar/edit" />,
           label: '编辑角色',
         },
         {
           key: '删除',
-          icon: <im.ImBin />,
+          icon: <OrgIcons type="/toolbar/delete" />,
           label: '删除角色',
           beforeLoad: async () => {
             return await item.delete();
@@ -212,7 +209,7 @@ const loadMenus = (item: ITarget | IIdentity) => {
   } else if (item.hasRelationAuth()) {
     items.push({
       key: '新增',
-      icon: <im.ImPlus />,
+      icon: <OrgIcons type="/toolbar/add" />,
       label: '新增角色',
       model: 'outside',
     });

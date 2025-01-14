@@ -1,18 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { IFile } from '@/ts/core';
+import { IApplication, IContainer, IDirectory, IFile } from '@/ts/core';
 import { command } from '@/ts/base';
 import DirectoryViewer from '@/components/Directory/views';
 import { loadFileMenus } from '@/executor/fileOperate';
 import { Spin } from 'antd';
 import { cleanMenus } from '@/utils/tools';
+import { AuthApps } from '@/ts/core/public/consts';
+
+interface IProps {
+  root: IContainer;
+}
+
 /**
  * @description: 默认目录
  * @return {*}
  */
-const Directory: React.FC<{ root: IFile }> = ({ root }) => {
+const Directory: React.FC<IProps> = ({ root }) => {
   const [currentTag, setCurrentTag] = useState('全部');
   const [preDirectory, setPreDirectory] = useState<IFile>();
-  const [directory, setDirectory] = useState<IFile>(root);
+  const [directory, setDirectory] = useState<IContainer>(root);
   const [content, setContent] = useState(directory.content());
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
@@ -29,15 +35,30 @@ const Directory: React.FC<{ root: IFile }> = ({ root }) => {
       directory.unsubscribe(id);
     };
   }, [directory]);
+  useEffect(() => {
+    const id = command.subscribe((type, cmd) => {
+      if (type == 'container' && cmd == 'sort') {
+        setContent(directory.content());
+      }
+    });
+    return () => {
+      command.unsubscribe(id);
+    };
+  }, [directory]);
   /** 加载目录内容 */
   const loadContent = (file: IFile, directory: IFile, reload: boolean) => {
     setLoaded(false);
-    file.loadContent(reload).then(() => {
+    file.loadContent(reload).then(async () => {
+      const data = directory.content().filter((item) => {
+        if (AuthApps.includes(item.typeName)) {
+          return (item as IDirectory | IApplication).isAuth ?? true;
+        }
+        return true;
+      });
       if (file.key === directory.key) {
-        setCurrentTag('全部');
-        setContent(directory.content());
+        setLoaded(true);
+        setContent(data);
       }
-      setLoaded(true);
     });
   };
   return (
@@ -48,10 +69,11 @@ const Directory: React.FC<{ root: IFile }> = ({ root }) => {
         selectFiles={[]}
         content={content}
         currentTag={currentTag}
+        directory={directory}
         tagChanged={(t) => setCurrentTag(t)}
         fileOpen={(file) => {
           if (file && 'isContainer' in file && file.isContainer) {
-            setDirectory(file as IFile);
+            setDirectory(file as IContainer);
           } else {
             command.emitter('executor', 'open', file);
           }

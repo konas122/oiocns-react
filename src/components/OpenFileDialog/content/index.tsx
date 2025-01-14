@@ -14,8 +14,10 @@ interface IProps {
   selects?: IFile[];
   excludeIds?: string[];
   current: IDirectory | 'disk';
+  fileContents?: IFile[];
   onFocused?: (file: IFile | undefined) => void;
   onSelected?: (files: IFile[]) => void;
+  showFile?: boolean;
 }
 /**
  * 存储-文件系统
@@ -85,7 +87,7 @@ const Directory: React.FC<IProps> = (props) => {
         ...orgCtrl.user.companys.map((i) => i.directory),
       );
     } else {
-      contents.push(...props.current!.content());
+      contents.push(...props.current!.content(props.showFile));
     }
     return contents;
   };
@@ -100,7 +102,7 @@ const Directory: React.FC<IProps> = (props) => {
         excludeIds={props.excludeIds}
         selectFiles={props.selects || []}
         focusFile={focusFile}
-        content={getContent()}
+        content={props.fileContents || getContent()}
         currentTag={currentTag}
         tagChanged={(t) => setCurrentTag(t)}
         fileOpen={(entity) => clickHanlder(entity as IFile)}

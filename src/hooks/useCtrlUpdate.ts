@@ -36,7 +36,7 @@ export const useFlagCmdEmitter = (
   callback?: Function,
 ): [boolean, string, () => void] => {
   const [key, setKey] = useState(generateUuid());
-  const [loaded, setLoaded] = useState(orgCtrl.provider.inited);
+  const [loaded, setLoaded] = useState(orgCtrl.data.inited);
   // 手动刷新
   const forceUpdate = () => {
     setKey(generateUuid());

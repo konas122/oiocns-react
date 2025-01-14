@@ -6,15 +6,16 @@ import cls from './index.module.less';
 import { PersonColumns } from '@/config/column';
 import CardOrTableComp from '@/components/CardOrTableComp';
 import { XTarget } from '@/ts/base/schema';
+import { ITarget, TargetType } from '@/ts/core';
 
 interface IProps {
   open: boolean;
-  members: XTarget[];
+  target: ITarget;
   exclude: XTarget[];
   finished: (selected: XTarget[]) => void;
 }
 
-const SelectMember: React.FC<IProps> = ({ open, members, exclude, finished }) => {
+const SelectMember: React.FC<IProps> = ({ open, target, exclude, finished }) => {
   const [selected, setSelected] = useState<XTarget[]>([]);
   const [datasource, setDatasource] = useState<XTarget[]>([]);
   const [searchValue, setSearchValue] = useState<string>('');
@@ -26,19 +27,18 @@ const SelectMember: React.FC<IProps> = ({ open, members, exclude, finished }) =>
       setSearchValue(e.target.value);
     }, 500);
   };
-
   useEffect(() => {
-    setDatasource([
-      ...members.filter(
+    const memberTarget = target.typeName === TargetType.Group ? target.space : target;
+    memberTarget.loadMembers(false, searchValue).then(() => {
+      setDatasource(memberTarget.members.filter(
         (m) =>
           exclude.every((e) => e.id != m.id) &&
           (m.name.includes(searchValue) ||
             m.code.includes(searchValue) ||
             m.remark.includes(searchValue)),
-      ),
-    ]);
-  }, [open, searchValue]);
-
+      ));
+    });
+  }, [open, target, searchValue]);
   return (
     <Modal
       open={open}

@@ -1,11 +1,13 @@
 import { command, common, model, schema } from '../../base';
-import { Entity, IEntity, MessageType, TargetType } from '../public';
+import { Entity, IEntity, MessageType, TargetType, orgAuth } from '../public';
 import { ITarget } from '../target/base/target';
 import { XCollection } from '../public/collection';
-import { IMessage, Message } from './message';
+import { GroupMessage, IMessage, Message } from './message';
 import { Activity, IActivity } from './activity';
 import { logger } from '@/ts/base/common';
 import { sessionOperates, teamOperates } from '../public/operates';
+import { ChatMessageType } from '@/ts/base/model';
+import { companyTypes } from '../public/consts';
 // 空时间
 const nullTime = new Date('2022-07-01').getTime();
 /** 会话接口类 */
@@ -28,17 +30,21 @@ export interface ISession extends IEntity<schema.XEntity> {
   isGroup: boolean;
   /** 会话的成员 */
   members: schema.XTarget[];
+  /** 会话的成员数量 */
+  memberCount: number;
   /** 会话动态 */
   activity: IActivity;
   /** 是否可以删除消息 */
   canDeleteMessage: boolean;
   /** 输入框内容 */
   inputContent: {
+    imgList: { file: File; imgUrl: string }[];
     message: string;
+    htmlMessage: string;
     mentions: { text: string; id: string }[];
   };
   /** 加载更多历史消息 */
-  moreMessage(): Promise<number>;
+  moreMessage(first?: boolean): Promise<number>;
   /** 禁用通知 */
   unMessage(): void;
   /** 消息变更通知 */
@@ -63,14 +69,25 @@ export interface ISession extends IEntity<schema.XEntity> {
   cacheChatData(notify?: boolean): Promise<boolean>;
 }
 
+/** 共享信息数据集 */
+export const ActivityIdSet = new Map<string, IActivity>();
+
 /** 会话实现 */
 export class Session extends Entity<schema.XEntity> implements ISession {
   sessionId: string;
   target: ITarget;
   activity: IActivity;
   chatdata: model.MsgChatData;
+  designateId: string;
   messages: IMessage[] = [];
-  inputContent: { message: string; mentions: { text: string; id: string }[] } = {
+  inputContent: {
+    imgList: { file: File; imgUrl: string }[];
+    message: string;
+    htmlMessage: string;
+    mentions: { text: string; id: string }[];
+  } = {
+    imgList: [],
+    htmlMessage: '',
     message: '',
     mentions: [],
   };
@@ -90,13 +107,20 @@ export class Session extends Entity<schema.XEntity> implements ISession {
       labels: [],
       recently: false,
     };
-    this.activity = new Activity(_metadata, this);
+    if (ActivityIdSet.has(_metadata.id)) {
+      this.activity = ActivityIdSet.get(_metadata.id)!;
+    } else {
+      this.activity = new Activity(_metadata, this);
+      ActivityIdSet.set(_metadata.id, this.activity);
+    }
     setTimeout(
       async () => {
         await this.loadCacheChatData();
       },
       this.id === this.userId ? 100 : 0,
     );
+    this.designateId =
+      this.target.typeName === TargetType.Group ? this.target.space.id : this.userId;
   }
   get badgeCount(): number {
     return this.chatdata.noReadCount;
@@ -106,6 +130,9 @@ export class Session extends Entity<schema.XEntity> implements ISession {
   }
   get members(): schema.XTarget[] {
     return this.isGroup ? this.target.members : [];
+  }
+  get memberCount(): number {
+    return this.isGroup ? this.target.memberCount : 0;
   }
   get isGroup(): boolean {
     return this.target.id === this.sessionId && this.sessionId !== this.userId;
@@ -127,11 +154,24 @@ export class Session extends Entity<schema.XEntity> implements ISession {
     );
   }
   get isMyChat(): boolean {
+    var hasAuth: boolean = false;
+    if (this.target.typeName === TargetType.Group) {
+      var auths = [orgAuth.RelationAuthId, orgAuth.SuperAuthId];
+      if (this.target.space.superAuth) {
+        auths.push(
+          ...this.target.space.superAuth.findAuthByOrgId(this.target.id).map((a) => a.id),
+        );
+      }
+      hasAuth = this.target.user.authenticate(
+        [this.target.id, this.target.space.id],
+        auths,
+      );
+    }
     return (
       this.metadata.typeName === TargetType.Person ||
       this.metadata.typeName === TargetType.Storage ||
-      this.members.some((i) => i.id === this.userId) ||
-      this.metadata.typeName == TargetType.Group ||
+      this.target.user.hasJoinedTeam(this.target.id) ||
+      (this.metadata.typeName == TargetType.Group && hasAuth) ||
       this.chatdata.noReadCount > 0
     );
   }
@@ -149,10 +189,13 @@ export class Session extends Entity<schema.XEntity> implements ISession {
   }
   get remark(): string {
     if (this.inputContent.message.length > 0) {
-      return '草稿:' + this.inputContent.message;
+      return '草稿:' + this.inputContent.message.replace(/<img\s+[^>]*>/gi, '[图片]');
     }
     if (this.chatdata.lastMessage) {
-      const msg = new Message(this.chatdata.lastMessage, this);
+      const msg = this.buildMessage(this.chatdata.lastMessage);
+      if (msg.metadata.typeName == MessageType.Recall) {
+        return `${msg.from.name}: 撤回了一条消息!`;
+      }
       return msg.msgTitle;
     }
     return this.metadata.remark;
@@ -170,14 +213,17 @@ export class Session extends Entity<schema.XEntity> implements ISession {
     return this.target.id === this.userId || this.target.hasRelationAuth();
   }
   get groupTags(): string[] {
-    const gtags: string[] = [];
+    var gtags: string[] = [];
+    if (companyTypes.includes(this.typeName as TargetType)) {
+      gtags.push('单位');
+    } else {
+      gtags.push(this.typeName);
+    }
     if (this.id === this.target.id) {
       if (this.id === this.userId) {
         gtags.push('本人');
-      } else if (this.id != this.belongId) {
-        gtags.push(this.target.user.findShareById(this.belongId).name);
       } else {
-        gtags.push(this.typeName);
+        gtags.push(this.target.user.findShareById(this.belongId).name);
       }
     } else {
       gtags.push(...super.groupTags);
@@ -190,9 +236,6 @@ export class Session extends Entity<schema.XEntity> implements ISession {
     }
     if (this.chatdata.isToping) {
       gtags.push('常用');
-    }
-    if (this.isGroup) {
-      gtags.push('群聊');
     }
     return [...gtags, ...this.chatdata.labels];
   }
@@ -214,25 +257,27 @@ export class Session extends Entity<schema.XEntity> implements ISession {
     operates.push(sessionOperates.RemoveSession);
     return operates;
   }
-  async moreMessage(): Promise<number> {
-    const data = await this.coll.loadSpace({
-      take: 30,
-      skip: this.messages.length,
-      options: {
-        match: this.sessionMatch,
-        sort: {
-          createTime: -1,
+  async moreMessage(first: boolean = false): Promise<number> {
+    if (first === false || this.messages.length < 30) {
+      const data = await this.coll.loadSpace({
+        take: 30,
+        skip: this.messages.length,
+        options: {
+          match: this.sessionMatch,
+          sort: {
+            createTime: -1,
+          },
         },
-      },
-    });
-    if (data && data.length > 0) {
-      data.forEach((msg) => {
-        this.messages.unshift(new Message(msg, this));
       });
-      if (this.chatdata.lastMsgTime === nullTime) {
-        this.chatdata.lastMsgTime = new Date(data[0].createTime).getTime();
+      if (data && data.length > 0) {
+        data.forEach((msg) => {
+          this.messages.unshift(this.buildMessage(msg));
+        });
+        if (this.chatdata.lastMsgTime === nullTime) {
+          this.chatdata.lastMsgTime = new Date(data[0].createTime).getTime();
+        }
+        return data.length;
       }
-      return data.length;
     }
     return 0;
   }
@@ -241,7 +286,7 @@ export class Session extends Entity<schema.XEntity> implements ISession {
   }
   onMessage(callback: (messages: IMessage[]) => void): void {
     this.messageNotify = callback;
-    this.moreMessage().then(async () => {
+    this.moreMessage(true).then(async () => {
       const ids = this.messages.filter((i) => !i.isReaded).map((i) => i.id);
       if (ids.length > 0) {
         this.tagMessage(ids, '已读');
@@ -262,7 +307,12 @@ export class Session extends Entity<schema.XEntity> implements ISession {
     cite?: IMessage | undefined,
     forward?: IMessage[] | undefined,
   ): Promise<boolean> {
+    if (this.target.typeName === TargetType.Group && !this.target.hasRelationAuth()) {
+      return false;
+    }
     this.inputContent = {
+      imgList:this.inputContent.imgList,
+      htmlMessage:'',
       message: '',
       mentions: [],
     };
@@ -275,12 +325,17 @@ export class Session extends Entity<schema.XEntity> implements ISession {
         return item;
       });
     }
+    var tags: string[] = [];
+    if (this.target.typeName === TargetType.Group) {
+      tags.push(this.target.space.name);
+    }
     const data = await this.coll.insert(
       {
         typeName: type,
         fromId: this.userId,
         toId: this.sessionId,
         comments: [],
+        designateId: this.designateId,
         content: common.StringPako.deflate(
           '[obj]' +
             JSON.stringify({
@@ -319,6 +374,7 @@ export class Session extends Entity<schema.XEntity> implements ISession {
             label: tag,
             time: 'sysdate()',
             userId: this.userId,
+            designateId: this.designateId,
           },
         },
       },
@@ -363,7 +419,7 @@ export class Session extends Entity<schema.XEntity> implements ISession {
   }
 
   receiveMessage(operate: string, data: model.ChatMessageType): void {
-    const imsg = new Message(data, this);
+    const imsg = this.buildMessage(data);
     if (operate === 'insert') {
       this.messages.push(imsg);
       if (!this.messageNotify) {
@@ -374,7 +430,6 @@ export class Session extends Entity<schema.XEntity> implements ISession {
         if (this.chatdata.noReadCount > 0) {
           logger.msg(`[${this.chatdata.chatName}]:${imsg.msgTitle}`);
         }
-        command.emitterFlag('session');
       } else if (!imsg.isReaded) {
         this.tagMessage([imsg.id], '已读');
       }
@@ -386,7 +441,12 @@ export class Session extends Entity<schema.XEntity> implements ISession {
       if (index > -1) {
         this.messages[index] = imsg;
       }
+      if (data.id === this.chatdata.lastMessage?.id) {
+        this.chatdata.lastMessage = data;
+        this.cacheChatData(this.messageNotify != undefined && !imsg.isMySend);
+      }
     }
+    command.emitterFlag('session');
     this.messageNotify?.apply(this, [this.messages]);
   }
 
@@ -411,7 +471,7 @@ export class Session extends Entity<schema.XEntity> implements ISession {
     const data = await this.target.user.cacheObj.get<model.MsgChatData>(this.cachePath);
     if (data && data.fullId === this.chatdata.fullId) {
       data.labels = [];
-      this.chatdata = data;
+      this.chatdata = { ...data };
     }
     this.target.user.cacheObj.subscribe(
       this.chatdata.fullId,
@@ -428,14 +488,14 @@ export class Session extends Entity<schema.XEntity> implements ISession {
   }
 
   async cacheChatData(notify: boolean = false): Promise<boolean> {
-    const success = await this.target.user.cacheObj.set(this.cachePath, this.chatdata);
+    const data = { ...this.chatdata };
+    if (data.lastMessage) {
+      data.lastMessage.tags = [];
+      data.lastMessage.comments = [];
+    }
+    const success = await this.target.user.cacheObj.set(this.cachePath, data);
     if (success && notify) {
-      await this.target.user.cacheObj.notity(
-        this.chatdata.fullId,
-        this.chatdata,
-        true,
-        true,
-      );
+      await this.target.user.cacheObj.notity(data.fullId, data, true, true);
     }
     return success;
   }
@@ -464,5 +524,12 @@ export class Session extends Entity<schema.XEntity> implements ISession {
         this.sessionId,
       );
     }
+  }
+
+  private buildMessage(msg: ChatMessageType): IMessage {
+    if (this.target.typeName === TargetType.Group) {
+      return new GroupMessage(msg, this);
+    }
+    return new Message(msg, this);
   }
 }

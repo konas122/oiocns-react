@@ -1,8 +1,19 @@
-import { model } from '@/ts/base';
+import { model, schema } from '@/ts/base';
+import { FiledLookup } from '@/ts/base/model';
 import moment from 'moment';
 import { message } from 'antd';
 import { formatDate } from '@/utils/index';
-import { DataType, MenuItemType, OperateMenuType, PageData } from 'typings/globelType';
+import {
+  DataType,
+  FieldInfo,
+  MenuItemType,
+  OperateMenuType,
+  PageData,
+} from 'typings/globelType';
+import { pinyin } from 'pinyin-pro';
+import { TargetType } from '@/ts/core/public/enums';
+import { cloneDeep } from 'lodash';
+import type { IForm, IView } from '@/ts/core';
 
 const dateFormat: string = 'YYYY-MM-DD';
 
@@ -56,7 +67,6 @@ export function toPageData<T extends DataType>(res: model.ResultType<T>): PageDa
       msg: res.msg,
     };
   } else {
-    console.error(res?.msg);
     return { success: false, data: [], total: 0, msg: res.msg };
   }
 }
@@ -279,6 +289,25 @@ const findMenuItemByKey = (item: MenuItemType, key: string): MenuItemType | unde
   return undefined;
 };
 
+const findNodeByKey = (obj: any, value: string, key: string = 'id'): any | null => {
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      const found = findNodeByKey(item, value, key);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (typeof obj === 'object' && obj !== null) {
+    if (obj[key] === value) {
+      return obj;
+    }
+    if (obj.children) {
+      return findNodeByKey(obj.children, value, key);
+    }
+  }
+  return null;
+};
+
 const cleanMenus = (items?: OperateMenuType[]): OperateMenuType[] | undefined => {
   const newItems = items?.map((i) => {
     return {
@@ -324,47 +353,26 @@ const shareOpenLink = (link: string | undefined, download: boolean = false) => {
 const parseHtmlToText = (html: string) => {
   var text = html.replace(/\s*/g, ''); //去掉空格
   text = text.replace(/<[^>]+>/g, ''); //去掉所有的html标记
+  text = text.replace(/&nbsp;/g, ''); //去掉&nbsp空格符号
   text = text.replace(/↵/g, ''); //去掉所有的↵符号
   return text.replace(/[\r\n]/g, ''); //去掉回车换行
 };
 
-/** 根据节点id获取节点信息 */
-const getNodeByNodeId = (
-  id: string,
-  node: model.WorkNodeModel | undefined,
-): model.WorkNodeModel | undefined => {
-  if (node) {
-    if (id === node.id) return node;
-    const find = getNodeByNodeId(id, node.children);
-    if (find) return find;
-    for (const subNode of node?.branches ?? []) {
-      const find = getNodeByNodeId(id, subNode.children);
-      if (find) return find;
-    }
-  }
+/** 将链接转化为超链接 */
+const parseTolink = (val: string) => {
+  return val
+    .replace(/(https?:\/\/[^\s]+)/g, '<a target=_blank href="$1">$1</a>')
+    .replace(/\n/g, '<br/>');
 };
 
-const loadGatewayNodes = (
-  node: model.WorkNodeModel,
-  memberNodes: model.WorkNodeModel[],
-) => {
-  if (node.type == '网关') {
-    memberNodes.push(node);
-  }
-  if (node.children) {
-    memberNodes = loadGatewayNodes(node.children, memberNodes);
-  }
-  for (const branch of node.branches ?? []) {
-    if (branch.children) {
-      memberNodes = loadGatewayNodes(branch.children, memberNodes);
-    }
-  }
-  return memberNodes;
+/** 是否为纯链接 */
+const isURL = (text: string) => {
+  return /^(https?:\/\/)([\w-]+(\.[\w-]+)+)([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?$/.test(
+    text,
+  );
 };
-
 const jsonParse = (val: any, defaultVal = null) => {
   if (!val || typeof val !== 'string') {
-    // console.warn('JSON.parse need string param');
     return defaultVal;
   }
   try {
@@ -374,21 +382,354 @@ const jsonParse = (val: any, defaultVal = null) => {
   }
 };
 
+const tryParseJson = (json: string | undefined) => {
+  if (json) {
+    const data = jsonParse(json);
+    if (data && Object.keys(data).length > 0) {
+      return data;
+    }
+  }
+  return undefined;
+};
+
+const generateCodeByInitials = (str: string) => {
+  return pinyin(str, { pattern: 'first' }).toUpperCase().replace(/\s*/g, '');
+};
+
+// 人员分类型添加本人选项
+const formatPeople = (lookups?: FiledLookup[]) => {
+  if (!lookups?.length) return [];
+  const isSavePerson = cloneDeep(lookups)?.filter((a) => {
+    return a.text === '本人';
+  });
+  isSavePerson.length ||
+    lookups?.unshift({
+      text: '本人',
+      id: 'person',
+      value: 'person',
+    } as FiledLookup);
+  return lookups;
+};
+
+const fieldConvert = (resultFields: model.FieldModel[]) => {
+  const valueFields: FieldInfo[] = [];
+  for (const item of resultFields) {
+    var field = {
+      id: item.id,
+      name: item.code,
+      dataField: item.code,
+      caption: item.name,
+      propId: item?.propId,
+      speciesId: item?.speciesId,
+    };
+    switch (item.valueType) {
+      case '数值型':
+      case '货币型':
+        valueFields.push({ ...field, dataType: 'number', fieldType: item.valueType });
+        break;
+      case '日期型':
+        valueFields.push({ ...field, dataType: 'date', fieldType: '日期型' });
+        break;
+      case '时间型':
+        valueFields.push({ ...field, dataType: 'datetime', fieldType: '时间型' });
+        break;
+      case '办事流程':
+        valueFields.push({ ...field, dataType: 'string', fieldType: '办事流程' });
+        break;
+      case '选择型':
+      case '分类型':
+        valueFields.push({
+          ...field,
+          dataType: 'string',
+          fieldType: '选择型',
+          lookup: {
+            displayExpr: 'text',
+            valueExpr: 'value',
+            allowClearing: true,
+            dataSource: formatPeople(item.lookups),
+          },
+        });
+        break;
+      case '描述型':
+      case '引用型':
+        valueFields.push({ ...field, dataType: 'string', fieldType: item.valueType });
+        break;
+      case '用户型':
+        valueFields.push({
+          ...field,
+          dataType: 'string',
+          fieldType: '用户型',
+          lookupAuth: {
+            displayExpr: 'text',
+            valueExpr: 'value',
+            allowClearing: true,
+            dataSource: [
+              {
+                id: 'person',
+                text: '本人',
+                value: 'person',
+              },
+              {
+                id: 'company',
+                text: '本单位',
+                value: 'company',
+              },
+              {
+                id: 'dept',
+                text: '本部门',
+                value: 'dept',
+              },
+            ],
+          },
+        } as FieldInfo);
+        break;
+    }
+  }
+  return valueFields;
+};
+
+/** 将HTML字符串中的外部资源链接修改为空链接 */
+const disableExternalResources = (html: string) => {
+  // |href
+  const modifiedHtml = html.replace(
+    /(src|action|data|poster|cite|codebase|manifest)="([^"]*)"/g,
+    '$1=""',
+  );
+  return modifiedHtml;
+};
+
+/** 解析网站预览信息 */
+const extractPreviewData = (html: string) => {
+  const newHtml = disableExternalResources(html);
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = newHtml;
+  /** 获取标题 */
+  const title =
+    tempDiv.querySelector('meta[property="og:title"]')?.getAttribute('content') ||
+    tempDiv.querySelector('title')?.textContent ||
+    '';
+  /** 获取网站描述信息 */
+  const metaDescription =
+    tempDiv.querySelector('meta[property="og:description"]') ||
+    tempDiv.querySelector('meta[name="description"]');
+  const description = metaDescription?.getAttribute('content') || '';
+
+  /** 获取icon */
+  const linkIcon =
+    tempDiv.querySelector('meta[property="og:image"]') ||
+    tempDiv.querySelector('link[rel="shortcut icon"]');
+  const favicon =
+    linkIcon?.getAttribute('content') || linkIcon?.getAttribute('href') || '';
+
+  return {
+    title,
+    description,
+    favicon,
+  };
+};
+
+/** 表单用户型筛选转换成id */
+const userFormatFilter = async (filter: any, form: IForm | IView) => {
+  if (!filter) return;
+  let filters = Array.isArray(filter[0]) ? filter : [filter];
+  const extraFilters: any = [];
+  const fields = form.fields.filter((i) => i.valueType === '用户型').map((i) => i.code);
+  fields.push('createUser', 'updateUser');
+  let searchValues = filters.filter((item: model.FieldModel) => {
+    return fields.includes(item[0]);
+  });
+  if (!searchValues.length || !searchValues[0][2]) return filters;
+  searchValues = searchValues.map((i: model.FieldModel) => i[2]);
+  let res = await Promise.all(
+    [...new Set(searchValues)].map(async (val) => {
+      const res = (await form.directory.target.space.getPartMembers(
+        0,
+        undefined,
+        [TargetType.Person, TargetType.Department],
+        val,
+      )) as model.PageResult<schema.XTarget>;
+      return res.result?.length
+        ? res.result.map((i) => {
+            return { name: val, id: i.id };
+          })
+        : [];
+    }),
+  );
+  const ids = res.flat(1);
+  filters.forEach((item: any, index: number) => {
+    if (Array.isArray(item) && fields.includes(item[0])) {
+      if (ids.length) {
+        ids.forEach((i: any, idx: number) => {
+          if (i.name === item[2]) {
+            if (idx > 0) {
+              const filter: any = cloneDeep(item);
+              filter[2] = i.id;
+              filter.filterValue = i.id;
+              filters.splice(index, 0, filter);
+              extraFilters.push('or', filter);
+            } else {
+              item[2] = i.id;
+              item.filterValue = i.id;
+            }
+          }
+        });
+      }
+    }
+    return true;
+  });
+  return filters;
+};
+
+/**  根据域名获取平台名 */
+const getPlatFormName = (): string => {
+  const names = window.location.hostname.split('.');
+  let platName: string;
+  switch (names[0]) {
+    case 'anxinwu':
+      platName = '安心屋';
+      break;
+    case 'gongyicang':
+      platName = '公益仓';
+      break;
+    case 'asset':
+      platName = '资产共享云';
+      break;
+    case 'assetcloud':
+      platName = '资产共享云';
+      break;
+    case 'dataexp':
+      platName = '数据资产治理实验平台';
+      break;
+    case 'ocia':
+      platName = '资产云开放协同创新中心';
+      break;
+    case 'apparatus':
+      platName = '大型科研仪器共享平台';
+      break;
+    case 'company':
+      platName = '校企监管平台';
+      break;
+    case 'healthcloud':
+      platName = '健康云';
+      break;
+    default:
+      platName = '奥集能';
+      break;
+  }
+  return platName;
+};
+
+/**  商城模板获取默认图 */
+const getDefaultImg = (product: schema.XProduct, species: model.FieldModel[]) => {
+  let img = '';
+  species.forEach((specie) => {
+    if (product[specie.code]) {
+      const lookup = specie.lookups?.find(
+        (lookup) => lookup.value === product[specie.code],
+      );
+      if (lookup) {
+        switch (lookup.text) {
+          case '房屋和构筑物':
+            img = 'img/mallTemplate/horse.png';
+            break;
+          case '家具和用具':
+            img = 'img/mallTemplate/furniture.png';
+            break;
+          case '流动资产':
+            img = 'img/mallTemplate/assets.png';
+            break;
+          case '设备':
+          case '打印':
+            img = 'img/mallTemplate/equipment.png';
+            break;
+          case '特种动植物':
+            img = 'img/mallTemplate/flora.png';
+            break;
+          case '图书和档案':
+            img = 'img/mallTemplate/books.png';
+            break;
+          case '文物和陈列品':
+            img = 'img/mallTemplate/cultural.png';
+            break;
+          case '无形资产':
+            img = 'img/mallTemplate/intangibleAssets.png';
+            break;
+          case '物资':
+            img = 'img/mallTemplate/materials.png';
+            break;
+          case '长期股权投资':
+            img = 'img/mallTemplate/investment.png';
+            break;
+          case '笔记本':
+            img = 'img/mallTemplate/notebook.png';
+            break;
+          case '耳机':
+            img = 'img/mallTemplate/earphone.png';
+            break;
+          case '键盘':
+            img = 'img/mallTemplate/keyboard.png';
+            break;
+          case '空调':
+            img = 'img/mallTemplate/airConditioner.png';
+            break;
+          case '立体空调':
+            img = 'img/mallTemplate/stereoAirConditioner.png';
+            break;
+          case '平板':
+            img = 'img/mallTemplate/slab.png';
+            break;
+          case '手表':
+            img = 'img/mallTemplate/watches.png';
+            break;
+          case '手机':
+            img = 'img/mallTemplate/phone.png';
+            break;
+          case '鼠标':
+            img = 'img/mallTemplate/mouse.png';
+            break;
+          case '台式机':
+            img = 'img/mallTemplate/desktop.png';
+            break;
+          case '相机':
+            img = 'img/mallTemplate/camera.png';
+            break;
+          case '椅子':
+            img = 'img/mallTemplate/chair.png';
+            break;
+          case '桌子':
+            img = 'img/mallTemplate/desk.png';
+            break;
+        }
+      }
+    }
+  });
+  if (img) {
+    return img;
+  }
+  return '/img/mallTemplate/default.png';
+};
+
 export {
   cleanMenus,
   dateFormat,
   debounce,
   downloadByUrl,
+  extractPreviewData,
+  fieldConvert,
   findAimObj,
   findMenuItemByKey,
+  findNodeByKey,
   formatZhDate,
+  generateCodeByInitials,
+  getDefaultImg,
   getNewKeyWithString,
-  getNodeByNodeId,
+  getPlatFormName,
   getUuid,
   handleFormatDate,
+  isURL,
   jsonParse,
-  loadGatewayNodes,
   parseHtmlToText,
+  parseTolink,
   pySegSort,
   pySegSortObj,
   renderNum,
@@ -397,5 +738,7 @@ export {
   showChatTime,
   showMessage,
   truncateString,
+  tryParseJson,
+  userFormatFilter,
   validIsSocialCreditCode,
 };

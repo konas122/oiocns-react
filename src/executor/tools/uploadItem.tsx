@@ -5,18 +5,24 @@ import { IDirectory } from '@/ts/core';
 import TypeIcon from '@/components/Common/GlobalComps/typeIcon';
 
 interface IProps {
-  icon: string;
+  icon?: string;
   typeName: string;
   directory: IDirectory;
   readonly?: boolean;
+  avatarSize?: number;
+  iconSize?: number;
+  tips?: string;
   onChanged: (icon: string) => void;
 }
 
 const UploadItem: React.FC<IProps> = ({
   icon,
+  tips,
   typeName,
   directory,
   readonly,
+  avatarSize = 100,
+  iconSize = 64,
   onChanged,
 }) => {
   const [avatar, setAvatar] = useState<model.FileItemShare | undefined>(
@@ -36,7 +42,7 @@ const UploadItem: React.FC<IProps> = ({
     async customRequest(options) {
       const file = options.file as File;
       if (file) {
-        const result = await directory.createFile(file);
+        const result = await directory.createFile(file.name, file);
         if (result) {
           setAvatar(result.shareInfo());
           onChanged(JSON.stringify(result.shareInfo()));
@@ -47,23 +53,28 @@ const UploadItem: React.FC<IProps> = ({
   return (
     <Space>
       <Avatar
-        size={100}
-        style={{ background: '#f9f9f9', color: '#606060', fontSize: 10 }}
+        size={avatarSize}
+        style={{
+          background: '#f9f9f9',
+          color: '#606060',
+          fontSize: 10,
+          paddingLeft: '10px',
+        }}
         src={
           avatar ? (
             <Image
-              width={100}
+              width={avatarSize - 10}
               src={avatar.thumbnail}
               preview={{ src: avatar.shareLink }}
             />
           ) : (
-            <TypeIcon iconType={typeName} size={64} />
+            <TypeIcon iconType={typeName} size={iconSize} />
           )
         }
       />
       {!readonly && (
         <Upload {...uploadProps}>
-          <Button type="link">上传图标</Button>
+          <Button type="link"> 上传{tips || '图标'}</Button>
         </Upload>
       )}
       {!readonly && avatar ? (
@@ -73,7 +84,7 @@ const UploadItem: React.FC<IProps> = ({
             setAvatar(undefined);
             onChanged('');
           }}>
-          清除图标
+          清除{tips || '图标'}
         </Button>
       ) : (
         ''

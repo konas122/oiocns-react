@@ -2,22 +2,33 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow-y: scroll;
-  background-color: @portal-background;
+  overflow: hidden;
+  background-color: #EDEFFF;
   position: relative;
-  .headBanner {
-    width: 100%;
-    min-height: 400px;
-    background-size: 100% 400px;
-    background-repeat: no-repeat;
-    display: flex;
-    align-items: center;
-    flex-direction: column;
+  :global {
+    .ogo-tabs-nav {
+      margin: 0;
+    }
+    .ogo-tabs-nav-wrap {
+      padding-top: 8px;
+    }
+    .ogo-tabs-content-holder {
+      width: 100%;
+      height: calc(100% - 46px);
+      overflow-y: scroll;
+    }
+   .ogo-tabs-nav-list > .ogo-tabs-tab {
+      background-color: transparent ;
+      border: none;
+    }
+    .ogo-tabs-tab-active {
+      background-color: #F7F8FA !important;
+    }
+    .ogo-tabs-content-holder {
+      background-color:  @portal-background;
+    }
+    .ogo-tabs-top > .ogo-tabs-nav::before {
+      border-bottom: none !important;
+    }
   }
-  .content {
-    width: 100%;
-    position: absolute;
-    top: 315px;
-  }
-  
 }

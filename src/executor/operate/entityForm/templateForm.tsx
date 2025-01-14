@@ -1,15 +1,16 @@
 import FullScreenModal from '@/components/Common/fullScreen';
 import SchemaForm from '@/components/SchemaForm';
-import staticContext from '@/executor/design/pageBuilder';
-import ElementFactory from '@/executor/design/pageBuilder/core/ElementFactory';
-import ElementTreeManager from '@/executor/design/pageBuilder/core/ElementTreeManager';
+import staticContext from '@/components/PageElement';
+import ElementFactory from '@/ts/element/ElementFactory';
+import ElementTreeManager from '@/ts/element/ElementTreeManager';
 import UploadItem from '@/executor/tools/uploadItem';
 import { schema } from '@/ts/base';
 import { IDirectory } from '@/ts/core';
 import { IPageTemplate } from '@/ts/core/thing/standard/page';
-import { ProFormColumnsType } from '@ant-design/pro-components';
+import { ProFormColumnsType, ProFormInstance } from '@ant-design/pro-components';
 import { Card, Col, Input, Radio, Row, Image } from 'antd';
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { generateCodeByInitials } from '@/utils/tools';
 
 interface IProps {
   formType: string;
@@ -77,12 +78,20 @@ const getMeta = (kind: string) => {
 
 const PageTemplateForm: React.FC<IProps> = ({ formType, current, finished }) => {
   const [center, setCenter] = useState(<></>);
+  const [isHideMode, setIsHideMode] = useState<boolean>(true);
+  const [template, setTemplate] = useState<string>('commonTemplate');
   let initialValue: any = { public: false, open: false };
+  const formRef = useRef<ProFormInstance>();
   switch (formType) {
     case 'updatePageTemplate':
       initialValue = current.metadata;
       break;
   }
+  useEffect(() => {
+    if (formType === 'updatePageTemplate' && current.metadata.mode) {
+      setIsHideMode(false);
+    }
+  }, []);
   const columns: ProFormColumnsType<schema.XPageTemplate>[] = [
     {
       title: '图标',
@@ -91,7 +100,15 @@ const PageTemplateForm: React.FC<IProps> = ({ formType, current, finished }) => 
       renderFormItem: (_, __, form) => {
         return (
           <UploadItem
-            typeName={'模板'}
+            typeName={
+              template === 'dataTemplate'
+                ? '商城模板-数据'
+                : template === 'realTemplate'
+                ? '商城模板-实体'
+                : template === 'spaceTemplate'
+                ? '空间模板'
+                : '页面模板'
+            }
             icon={initialValue.icon}
             onChanged={(icon) => {
               form.setFieldValue('icon', icon);
@@ -113,6 +130,73 @@ const PageTemplateForm: React.FC<IProps> = ({ formType, current, finished }) => 
       dataIndex: 'code',
       formItemProps: {
         rules: [{ required: true, message: '编码为必填项' }],
+      },
+    },
+    {
+      title: '模板类型',
+      dataIndex: 'template',
+      valueType: 'select',
+      initialValue: 'commonTemplate',
+      fieldProps: {
+        options: [
+          {
+            label: '自由页面模板',
+            value: 'commonTemplate',
+          },
+          {
+            label: '数据共享模板',
+            value: 'dataTemplate',
+          },
+          {
+            label: '实物共享模板',
+            value: 'realTemplate',
+          },
+          {
+            label: '空间共享模板',
+            value: 'spaceTemplate',
+          },
+        ],
+      },
+    },
+    {
+      title: '模板模式',
+      dataIndex: 'mode',
+      valueType: 'select',
+      initialValue: 'trading',
+      hideInForm: isHideMode,
+      fieldProps: {
+        options: [
+          {
+            label: '共享',
+            value: 'sharing',
+          },
+          {
+            label: '交易',
+            value: 'trading',
+          },
+        ],
+      },
+    },
+    {
+      title: '打开方式',
+      dataIndex: 'openMode',
+      valueType: 'select',
+      initialValue: 'horiz',
+      fieldProps: {
+        options: [
+          {
+            label: '横排',
+            value: 'horiz',
+          },
+          {
+            label: '竖排',
+            value: 'vertical',
+          },
+          {
+            label: '地图',
+            value: 'map',
+          }
+        ],
       },
     },
     {
@@ -152,6 +236,7 @@ const PageTemplateForm: React.FC<IProps> = ({ formType, current, finished }) => 
       valueType: 'switch',
       colProps: { span: 12 },
     },
+
     {
       title: '备注',
       dataIndex: 'remark',
@@ -165,6 +250,7 @@ const PageTemplateForm: React.FC<IProps> = ({ formType, current, finished }) => 
   return (
     <div>
       <SchemaForm<schema.XPageTemplate>
+        formRef={formRef}
         open
         title="页面模板定义"
         width={640}
@@ -179,24 +265,71 @@ const PageTemplateForm: React.FC<IProps> = ({ formType, current, finished }) => 
             finished();
           }
         }}
+        onValuesChange={async (values: any) => {
+          if (Object.keys(values)[0] === 'name') {
+            formRef.current?.setFieldValue(
+              'code',
+              generateCodeByInitials(values['name']),
+            );
+          }
+          const template = values['template'];
+          if (template) {
+            const templateMappings: any = {
+              dataTemplate: { hideMode: false, templateName: 'dataTemplate' },
+              realTemplate: { hideMode: false, templateName: 'realTemplate' },
+              commonTemplate: { hideMode: true, templateName: 'commonTemplate' },
+              spaceTemplate: { hideMode: true, templateName: 'spaceTemplate' },
+            };
+            const templateConfig = templateMappings[template];
+            if (templateConfig) {
+              setIsHideMode(templateConfig.hideMode);
+              setTemplate(templateConfig.templateName);
+            }
+          }
+        }}
         onFinish={async (values) => {
           switch (formType) {
             case 'newPageTemplate': {
-              values.typeName = '页面模板';
-              values.rootElement = ElementTreeManager.createRoot();
-              if (values.kind) {
-                const meta = getMeta(values.kind);
-                if (meta) {
-                  values.rootElement.props.layoutType = meta.layoutType;
-                  values.rootElement.children.push(
-                    new ElementFactory(staticContext.metas).create(
-                      values.kind,
-                      meta.label,
-                    ),
-                  );
+              const { template } = values;
+              if (
+                template === 'dataTemplate' ||
+                template === 'realTemplate'
+              ) {
+                values.typeName = '商城模板';
+                await (current as IDirectory).standard.createTemplate(values);
+              } else if (template === 'spaceTemplate') {
+                values.typeName = '空间模板';
+                values.rootElement = ElementTreeManager.createRoot();
+                if (values.kind) {
+                  const meta = getMeta(values.kind);
+                  if (meta) {
+                    values.rootElement.props.layoutType = meta.layoutType;
+                    values.rootElement.children.push(
+                      new ElementFactory(staticContext.metas).create(
+                        values.kind,
+                        meta.label,
+                      ),
+                    );
+                  }
                 }
+                await (current as IDirectory).standard.createTemplate(values);
+              } else {
+                values.typeName = '页面模板';
+                values.rootElement = ElementTreeManager.createRoot();
+                if (values.kind) {
+                  const meta = getMeta(values.kind);
+                  if (meta) {
+                    values.rootElement.props.layoutType = meta.layoutType;
+                    values.rootElement.children.push(
+                      new ElementFactory(staticContext.metas).create(
+                        values.kind,
+                        meta.label,
+                      ),
+                    );
+                  }
+                }
+                await (current as IDirectory).standard.createTemplate(values);
               }
-              await (current as IDirectory).standard.createTemplate(values);
               finished();
               break;
             }

@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import MainLayout from '../MainLayout';
 import Content from './content';
 import useMenuUpdate from '@/hooks/useMenuUpdate';
-import { loadSettingMenu } from './config';
+import { loadSettingMenu } from './config'; 
 import FullScreenModal from '../Common/fullScreen';
 import { Button, Divider, Space } from 'antd';
 import { IFile } from '@/ts/core';
 import orgCtrl, { Controller } from '@/ts/controller';
+import { MenuItemType } from 'typings/globelType';
 
 export interface IFileDialogProps {
   title?: string;
@@ -17,16 +18,24 @@ export interface IFileDialogProps {
   currentKey?: string;
   excludeIds?: string[];
   allowInherited?: boolean;
+  leftShow?: boolean;
+  rightShow?: boolean;
+  fileContents?: IFile[];
   onOk: (files: IFile[]) => void;
   onCancel: () => void;
+  showFile?: boolean;
+  onLoadMenu?: () => MenuItemType;
+  onSelectMenuChanged?: (menu: MenuItemType) => void;
 }
 
 const OpenFileDialog: React.FC<IFileDialogProps> = (props) => {
   const [selectedFiles, setSelectedFiles] = useState<IFile[]>([]);
-  const [key, rootMenu, selectMenu, setSelectMenu] = useMenuUpdate(
-    () => loadSettingMenu(props.rootKey, props.allowInherited || false),
-    new Controller(props.currentKey ?? orgCtrl.currentKey),
-  );
+  const [key, rootMenu, selectMenu, setSelectMenu] = useMenuUpdate(() => {
+    if (props.onLoadMenu) {
+      return props.onLoadMenu();
+    }
+    return loadSettingMenu(props.rootKey, props.allowInherited || false);
+  }, new Controller(props.currentKey ?? orgCtrl.currentKey));
   if (!selectMenu || !rootMenu) return <></>;
   return (
     <FullScreenModal
@@ -52,19 +61,23 @@ const OpenFileDialog: React.FC<IFileDialogProps> = (props) => {
         </Space>
       }>
       <MainLayout
-        leftShow
+        leftShow={props.leftShow === false ? false : true}
+        rightShow={props.rightShow === false ? false : true}
         previewFlag={'dialog'}
         selectMenu={selectMenu}
         onSelect={(data) => {
           setSelectMenu(data);
+          props.onSelectMenuChanged?.apply(this, [data]);
         }}
         siderMenuData={rootMenu}>
         <Content
           key={key}
+          showFile={props.showFile}
           accepts={props.accepts}
           selects={selectedFiles}
           current={selectMenu.item}
           excludeIds={props.excludeIds}
+          fileContents={props.fileContents}
           onFocused={(file) => {
             if (!props.multiple) {
               if (file) {

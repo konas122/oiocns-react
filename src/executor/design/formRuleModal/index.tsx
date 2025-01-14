@@ -22,9 +22,11 @@ interface Iprops {
   form: IForm;
 }
 
-/*
-  规则编辑模态框
-*/
+
+/**  
+ * 规则编辑模态框
+ * @deprecated 旧版规则
+ */
 const FormRuleModal = (props: Iprops) => {
   const formRef = useRef<ProFormInstance>();
   const { open, handleOk, form, current, handleCancel } = props;

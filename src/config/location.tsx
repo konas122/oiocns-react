@@ -8,6 +8,17 @@ interface IResources {
 }
 export const getResouces = (): IResources => {
   const hostname = window.location.hostname;
+  //健康云
+  if (hostname.startsWith('ai.zjhealthcloud')) {
+    return {
+      platName: '健康云',
+      location: 'healthcloud',
+      passport: [],
+      unitName: '浙江省健康云有限公司',
+      favicon: '/favicon/asset.ico',
+      unitPage: 'https://ai.zjhealthcloud.cn',
+    };
+  }
   //安心屋
   if (hostname.startsWith('anxinwu')) {
     return {
@@ -31,7 +42,7 @@ export const getResouces = (): IResources => {
     };
   }
   //资产共享云
-  if (hostname.startsWith('asset')) {
+  if (hostname.startsWith('asset') || hostname.startsWith('assetcloud')) {
     return {
       platName: '资产共享云',
       location: 'asset',

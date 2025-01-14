@@ -67,7 +67,7 @@ const MainLayout: React.FC<MainLayoutType> = (props) => {
   };
   const previewCtx = React.useMemo(() => {
     return <EntityPreview flag={props.previewFlag} />;
-  }, [props]);
+  }, []);
   return (
     <Layout className={'main_layout'}>
       <Row className={'header'} justify="space-between">

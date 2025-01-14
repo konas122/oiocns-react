@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Modal } from 'antd';
+import { Modal, Space } from 'antd';
 import { SelectBox, TextArea, TextBox } from 'devextreme-react';
 import { model } from '@/ts/base';
 import { getUuid } from '@/utils/tools';
-import CustomBuilder from '../filter/builder';
+import CustomBuilder from '../builder';
+import { FieldInfo } from 'typings/globelType';
 
 interface IProps {
-  fields: model.FieldInfo[];
+  fields: FieldInfo[];
   current?: model.FormShowRule;
   onOk: (rule: model.FormShowRule) => void;
   onCancel: () => void;
@@ -44,7 +45,7 @@ const ShowRuleModal: React.FC<IProps> = (props) => {
   return (
     <Modal
       destroyOnClose
-      title={'渲染规则'}
+      title={<div style={{ margin: '20px 12px 4px' }}>渲染规则</div>}
       open={true}
       onOk={() => {
         const getString = (datas: any[]) => {
@@ -77,81 +78,83 @@ const ShowRuleModal: React.FC<IProps> = (props) => {
       okButtonProps={{
         disabled: vaildDisable(),
       }}>
-      <TextBox
-        label="规则名称*"
-        labelMode="floating"
-        value={name}
-        onValueChange={(e) => {
-          setName(e);
-        }}
-      />
-      <SelectBox
-        label="目标*"
-        labelMode="floating"
-        value={target}
-        showClearButton
-        displayExpr="caption"
-        valueExpr="id"
-        dataSource={props.fields}
-        onSelectionChanged={(e) => {
-          setTarget(e.selectedItem['id']);
-        }}
-      />
-      <div>
-        <SelectBox
-          width={'60%'}
-          value={showType}
-          label="类型*"
-          showClearButton
-          labelMode="floating"
-          displayExpr="label"
-          valueExpr="value"
-          style={{ display: 'inline-block' }}
-          dataSource={[
-            { label: '是否展示', value: 'visible' },
-            { label: '是否必填', value: 'isRequired' },
-          ]}
-          onSelectionChanged={(e) => {
-            setShowType(e.selectedItem['value']);
+      <Space direction="vertical" size={12} style={{ display: 'flex' }}>
+        <TextBox
+          label="规则名称*"
+          labelMode="outside"
+          value={name}
+          onValueChange={(e) => {
+            setName(e);
           }}
         />
         <SelectBox
-          width={'40%'}
-          value={value}
-          label="值*"
+          label="目标*"
+          labelMode="outside"
+          value={target}
           showClearButton
-          labelMode="floating"
-          style={{ display: 'inline-block' }}
-          dataSource={[
-            { label: '是', value: true },
-            { label: '否', value: false },
-          ]}
-          displayExpr="label"
-          valueExpr="value"
+          displayExpr="caption"
+          valueExpr="id"
+          dataSource={props.fields}
           onSelectionChanged={(e) => {
-            setValue(e.selectedItem['value']);
+            setTarget(e.selectedItem['id']);
           }}
         />
-      </div>
-      <div style={{ padding: 5 }}>
-        <span>条件*：</span>
-        <CustomBuilder
-          fields={props.fields}
-          displayText={conditionText}
-          onValueChanged={(value, text) => {
-            setCondition(value);
-            setConditionText(text);
+        <div>
+          <SelectBox
+            width={'60%'}
+            value={showType}
+            label="类型*"
+            showClearButton
+            labelMode="outside"
+            displayExpr="label"
+            valueExpr="value"
+            style={{ display: 'inline-block' }}
+            dataSource={[
+              { label: '是否展示', value: 'visible' },
+              { label: '是否必填', value: 'isRequired' },
+            ]}
+            onSelectionChanged={(e) => {
+              setShowType(e.selectedItem['value']);
+            }}
+          />
+          <SelectBox
+            width={'40%'}
+            value={value}
+            label="值*"
+            showClearButton
+            labelMode="floating"
+            style={{ display: 'inline-block' }}
+            dataSource={[
+              { label: '是', value: true },
+              { label: '否', value: false },
+            ]}
+            displayExpr="label"
+            valueExpr="value"
+            onSelectionChanged={(e) => {
+              setValue(e.selectedItem['value']);
+            }}
+          />
+        </div>
+        <div style={{ padding: 5 }}>
+          <span>条件*：</span>
+          <CustomBuilder
+            fields={props.fields}
+            displayText={conditionText}
+            onValueChanged={(value, text) => {
+              setCondition(value);
+              setConditionText(text);
+            }}
+          />
+        </div>
+        <TextArea
+          label="备注"
+          labelMode="outside"
+          onValueChanged={(e) => {
+            setRemark(e.value);
           }}
+          value={remark}
         />
-      </div>
-      <TextArea
-        label="备注"
-        labelMode="floating"
-        onValueChanged={(e) => {
-          setRemark(e.value);
-        }}
-        value={remark}
-      />
+      </Space>
     </Modal>
   );
 };

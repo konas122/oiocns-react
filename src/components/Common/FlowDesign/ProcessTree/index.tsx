@@ -1,31 +1,45 @@
-import { AddNodeType, NodeModel, dataType, getNewBranchNode } from '../processType';
+import {
+  WorkNodeDisplayModel,
+  isBranchNode,
+  dataType,
+  getNewBranchNode,
+} from '@/utils/work';
 import { Button, Card, Layout, Space, message } from 'antd';
 import cls from './index.module.less';
 import { decodeAppendDom } from './Components';
 import { ITarget } from '@/ts/core';
 import React, { useState } from 'react';
-import { isBranchNode, getNodeName, getNodeCode } from '../processType';
 import { AiOutlineMinus, AiOutlinePlus } from 'react-icons/ai';
 import { generateUuid } from '@/ts/base/common';
+import { AddNodeType, getNodeName, getNodeCode } from '@/utils/work';
 
 type IProps = {
   target?: ITarget;
-  resource: NodeModel;
+  version?: string;
   isEdit: boolean;
-  onSelectedNode: (params: NodeModel) => void;
+  isGroupWork: boolean;
+  resource: WorkNodeDisplayModel;
+  onSelectedNode: (params: WorkNodeDisplayModel) => void;
 };
 
 /**
  * 流程树
  * @returns
  */
-const ProcessTree: React.FC<IProps> = ({ target, resource, onSelectedNode, isEdit }) => {
+const ProcessTree: React.FC<IProps> = ({
+  target,
+  version,
+  resource,
+  onSelectedNode,
+  isEdit,
+  isGroupWork,
+}) => {
   const [key, setKey] = useState(0);
   const [scale, setScale] = useState<number>(100);
-  const [nodeMap] = useState(new Map<string, NodeModel>());
+  const [nodeMap] = useState(new Map<string, WorkNodeDisplayModel>());
 
   // 获取节点树
-  const getDomTree = (node?: NodeModel): any => {
+  const getDomTree = (node?: WorkNodeDisplayModel): any => {
     if (node && node.code) {
       nodeMap.set(node.code, node);
       if (node.branches && node.branches.length > 0) {
@@ -71,17 +85,21 @@ const ProcessTree: React.FC<IProps> = ({ target, resource, onSelectedNode, isEdi
   };
 
   // 加载节点
-  const loadNodeDom = (node: NodeModel) => {
-    return decodeAppendDom(node, {
-      isEdit,
-      target,
-      level: 1,
-      config: node,
-      //定义事件，插入节点，删除节点，选中节点，复制/移动
-      onInsertNode: (type: any) => insertNode(type, node),
-      onDelNode: () => delNode(node),
-      onSelected: () => onSelectedNode(node),
-    });
+  const loadNodeDom = (node: WorkNodeDisplayModel) => {
+    return decodeAppendDom(
+      node,
+      {
+        isEdit,
+        target,
+        level: 1,
+        config: node,
+        //定义事件，插入节点，删除节点，选中节点，复制/移动
+        onInsertNode: (type: any) => insertNode(type, node),
+        onDelNode: () => delNode(node),
+        onSelected: () => onSelectedNode(node),
+      },
+      isGroupWork,
+    );
   };
 
   // 新增连线
@@ -106,13 +124,25 @@ const ProcessTree: React.FC<IProps> = ({ target, resource, onSelectedNode, isEdi
       name: getNodeName(type),
       code: getNodeCode(),
       parentCode: parentNode.code,
+      primaryForms: [],
+      detailForms: [],
       executors: [],
+      formRules: [],
+      authoritys: [],
+      containCompany: true,
+      forms: [],
     };
     let isBrance = true;
     switch (type as AddNodeType) {
       case AddNodeType.CONDITION:
       case AddNodeType.CONCURRENTS:
         newNode.branches = [getNewBranchNode(newNode, 1), getNewBranchNode(newNode, 2)];
+        break;
+      case AddNodeType.GATEWAY:
+        isBrance = false;
+        newNode.destType = '其他办事';
+        nextNode.parentCode = newNode.code;
+        newNode.children = nextNode;
         break;
       case AddNodeType.ORGANIZATIONA:
         newNode.branches = [
@@ -156,7 +186,7 @@ const ProcessTree: React.FC<IProps> = ({ target, resource, onSelectedNode, isEdi
   };
 
   //删除当前节点
-  const delNode = (node: NodeModel) => {
+  const delNode = (node: WorkNodeDisplayModel) => {
     //获取该节点的父节点
     let parentNode = nodeMap.get(node.parentCode);
     if (parentNode) {
@@ -228,49 +258,40 @@ const ProcessTree: React.FC<IProps> = ({ target, resource, onSelectedNode, isEdi
       <Card bordered={false}>
         <Layout>
           <Layout.Content>
-            <Card bordered={false}>
-              <div className={cls['publish']}>
-                <Space>
-                  <Button
-                    className={cls['scale']}
-                    size="small"
-                    disabled={scale <= 40}
-                    onClick={() => setScale(scale - 10)}>
-                    <AiOutlineMinus />
-                  </Button>
-                  <span>{scale}%</span>
-                  <Button
-                    size="small"
-                    className={cls['scale']}
-                    disabled={scale >= 150}
-                    onClick={() => setScale(scale + 10)}>
-                    <AiOutlinePlus />
-                  </Button>
-                </Space>
-              </div>
-              {/* 基本信息组件 */}
-              <div>
-                <div className={cls['container']}>
-                  <div className={cls['layout-body']}>
-                    <div style={{ height: 'calc(100vh - 220px )', overflowY: 'auto' }}>
-                      <div
-                        className={cls['design']}
-                        style={{ transform: `scale(${(scale ?? 100) / 100})` }}>
-                        <div className={cls['_root']}>
-                          {getDomTree(resource)}
-                          <div className={cls['all-process-end']}>
-                            <div className={cls['process-content']}>
-                              <div className={cls['process-left']}>结束</div>
-                              <div className={cls['process-right']}>数据归档</div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+            <div className={cls['publish']}>
+              <Space>
+                <div>v{version} 版本</div>
+                <Button
+                  className={cls['scale']}
+                  size="small"
+                  disabled={scale <= 40}
+                  onClick={() => setScale(scale - 10)}>
+                  <AiOutlineMinus />
+                </Button>
+                <span>{scale}%</span>
+                <Button
+                  size="small"
+                  className={cls['scale']}
+                  disabled={scale >= 150}
+                  onClick={() => setScale(scale + 10)}>
+                  <AiOutlinePlus />
+                </Button>
+              </Space>
+            </div>
+            {/* 基本信息组件 */}
+            <div>
+              <div className={cls['container']}>
+                <div className={cls['layout-body']}>
+                  <div style={{ height: 'calc(100vh - 220px )', overflowY: 'auto' }}>
+                    <div
+                      className={cls['design']}
+                      style={{ transform: `scale(${(scale ?? 100) / 100})` }}>
+                      <div className={cls['_root']}>{getDomTree(resource)}</div>
                     </div>
                   </div>
                 </div>
               </div>
-            </Card>
+            </div>
           </Layout.Content>
         </Layout>
       </Card>

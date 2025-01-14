@@ -52,12 +52,24 @@ export class Department extends Target implements IDepartment {
   parent: IDepartment | undefined;
   children: IDepartment[] = [];
   childrenTypes: string[] = [];
+  override get isMyTeam(): boolean {
+    return true;
+    // return (
+    // 	this.metadata.public ||
+    //   this.hasDataAuth() ||
+    //   this.hasRelationAuth() ||
+    //   this.user.departments.some((a) => this.targets.some((s) => s.id == a.id))
+    // );
+  }
   private _childrenLoaded: boolean = false;
   findChat(id: string): ISession | undefined {
     return this.space.memberChats.find((i) => i.id === id);
   }
   get superior(): IFile {
     return this.parent ?? this.space;
+  }
+  get filterTags(): string[] {
+    return ['内设机构'];
   }
   async loadChildren(reload?: boolean | undefined): Promise<IDepartment[]> {
     if (this.childrenTypes.length > 0 && (!this._childrenLoaded || reload)) {
@@ -92,6 +104,26 @@ export class Department extends Target implements IDepartment {
   }
   async createTarget(data: model.TargetModel): Promise<ITeam | undefined> {
     return this.createDepartment(data);
+  }
+  async applyJoin(members: schema.XTarget[]): Promise<boolean> {
+    for (const member of members) {
+      if (
+        member.typeName === TargetType.Department ||
+        member.typeName === TargetType.College ||
+        member.typeName === TargetType.Section ||
+        member.typeName === TargetType.Major ||
+        member.typeName === TargetType.Research ||
+        member.typeName === TargetType.Laboratory ||
+        member.typeName === TargetType.Office ||
+        member.typeName === TargetType.Working
+      ) {
+        await kernel.applyJoinTeam({
+          id: member.id,
+          subId: this.user.id,
+        });
+      }
+    }
+    return true;
   }
   async exit(): Promise<boolean> {
     if (await this.removeMembers([this.user.metadata])) {
@@ -138,13 +170,15 @@ export class Department extends Target implements IDepartment {
   async deepLoad(reload: boolean = false): Promise<void> {
     await Promise.all([this.loadChildren(reload), this.loadIdentitys(reload)]);
     await Promise.all(this.children.map((department) => department.deepLoad(reload)));
-    this.loadMembers(reload);
-    this.directory.loadDirectoryResource(reload);
+    await this.directory.loadDirectoryResource(reload);
   }
   override operates(): model.OperateModel[] {
     const operates = super.operates();
     if (this.hasRelationAuth()) {
       operates.unshift(targetOperates.NewDepartment);
+    }
+    if (!this.user.departments.some((a) => this.targets.some((s) => s.id == a.id))) {
+      operates.unshift(targetOperates.JoinDepartment);
     }
     return operates;
   }

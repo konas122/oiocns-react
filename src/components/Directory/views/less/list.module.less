@@ -1,14 +1,18 @@
 .list_item {
   cursor: pointer;
   padding: 0 10px;
-  border-radius: 10px;
+
+  // border-bottom: 1px solid @border-color;
+
+}
+
+.border_bottom {
   border-bottom: 1px solid @border-color;
 }
 
 .vlist_item {
   cursor: pointer;
   padding: 0 10px;
-  border-radius: 10px;
 }
 
 .item_title {
@@ -16,22 +20,21 @@
   margin-right: 10px;
 }
 
-.list_item:hover, .vlist_item:hover {
-  background-color: #f1f1f1;
+.list_item:hover,
+.vlist_item:hover {
+  background-color: #f8f8fb;
 }
 
 .list_item_select {
   cursor: pointer;
   padding: 0 10px;
-  border-radius: 10px;
-  border-bottom: 1px solid #ebeef5;
+  // border-bottom: 1px solid #ebeef5;
   background-color: @active-background;
 }
 
 .vlist_item_select {
   cursor: pointer;
   padding: 0 10px;
-  border-radius: 10px;
   background-color: @active-background;
 }
 
@@ -40,4 +43,10 @@
   width: 100%;
   min-height: 160px;
   max-height: calc(100% - 80px);
+}
+
+.score {
+  color: red;
+  font-style: oblique;
+  text-decoration: underline;
 }

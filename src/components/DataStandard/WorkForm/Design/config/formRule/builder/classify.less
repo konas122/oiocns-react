@@ -1,0 +1,99 @@
+.classifyContainer {
+    .deleteIcon {
+        width: 30px;
+        height: 30px;
+        color: rgba(217,83,79,0.3);
+        font-weight: bold;
+        border-radius: 10px;
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+    }
+    .addIcon {
+        width: 30px;
+        height: 30px;
+        border-radius: 10px;
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+    }
+    .relation {
+        margin-left: 5px;
+        margin-right: 5px;
+        .ogo-select-selector {
+            background-color: rgba(217,83,79,0.3);
+        }
+    }
+    .parentLevel {
+        display: flex;
+        flex-direction: row;
+        justify-content: flex-start;
+        align-items: center;
+    }
+    .children {
+        padding-left: 35px;
+        display: flex;
+        flex-direction: row;
+        justify-content: flex-start;
+        align-items: center;
+        padding-top: 4px;
+        padding-bottom: 4px;
+    } 
+
+    .classifyTags {
+        background-color: rgba(221,221,221,0.5);
+        border-radius: 4px;
+        min-width: 100px;
+        max-width: 180px;
+        height: 32px;
+        display: flex;
+        flex-direction: row;
+        justify-content: flex-start;
+        align-items: center;
+        .tags {
+            min-width: 100px;
+            max-width: 140px;
+            height: 100%;
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-start;
+            align-items: center;
+            // background-color: pink;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            .ogo-tag {
+                width: 50px;
+                height: 32px;
+                padding-left: 2px;
+                line-height: 32px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+        }
+    }
+}
+
+.treeContainer {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    .tcLeft {
+        min-width: 150px;
+        height: 400px;
+    }
+    .tcRight {
+        width: calc(100% - 200px);
+        height: 400px;
+    }
+}
+
+.placeholder {
+    color: #9d9d9d;
+}

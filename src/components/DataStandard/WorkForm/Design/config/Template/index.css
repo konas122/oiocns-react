@@ -1,0 +1,109 @@
+.Content {
+  width: 1000px;
+  height: 100%;
+  margin: auto;
+}
+.template3 tr,
+.template3 th {
+  padding: 0px;
+  height: 30px;
+}
+.printContent {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px !important;
+}
+.head {
+  text-align: center;
+  font-weight: 600;
+  font-size: 16px;
+  margin: 20px 0;
+}
+.center {
+  text-align: center;
+}
+.marginleft50 {
+  margin-left: 50px;
+}
+.height50 {
+  height: 50px;
+}
+.height200 {
+  height: 200px;
+}
+.height300 {
+  height: 300px;
+}
+.tableName {
+  width: 15%;
+  text-align: center;
+}
+.width12 {
+  width: 12%;
+  text-align: center;
+}
+.qianzi {
+  text-align: right;
+  margin-top: 20px;
+  margin-right: 100px;
+}
+.template3_qz {
+  text-align: left;
+}
+.template3_qz .qz {
+  margin: 75px 0 0 30px;
+}
+.template3_qz .time {
+  margin: 10px;
+}
+/* 未选中状态下的样式 */
+.print-checkbox-label input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  background-color: #fff;
+  /* 默认背景色 */
+  border: 1px solid #000;
+  /* 默认边框色 */
+}
+/* 选中状态下的样式 */
+.print-checkbox-label input[type="checkbox"]:checked {
+  background-color: #fff;
+  /* 选中时的背景色 */
+  border: 1px solid #000;
+  /* 选中时的边框色 */
+  position: relative;
+}
+/* 可选: 隐藏原生的复选框样式 */
+.print-checkbox-label input[type="checkbox"] {
+  -webkit-appearance: none;
+  /* chrome、safari、opera */
+  -moz-appearance: none;
+  /* firefox */
+  appearance: none;
+}
+/* 可选: 隐藏原生的复选框样式 */
+.print-checkbox-label input[type="checkbox"]:checked::after {
+  content: "\2713";
+  /* Unicode字符 for 对勾 */
+  color: #000;
+  /* 对勾的颜色 */
+  font-size: 15px;
+  /* 对勾的大小 */
+  line-height: 16px;
+  /* 对勾的行高，使其在复选框中垂直居中 */
+  text-align: center;
+  /* 对勾的文本居中 */
+  position: absolute;
+}
+.footer-container-div {
+  margin-top: 10px;
+  padding: 10px;
+  white-space: pre-wrap;
+}
+.subtitle-container-div {
+  margin: 10px 0;
+  padding: 10px;
+}
+#components-transfer-demo-table-transfer .ant-table td {
+  background: transparent;
+}

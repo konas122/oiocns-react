@@ -1,0 +1,52 @@
+
+
+
+@page-padding: 24px;
+
+.document-designer {
+  width: 100%;
+  height: 100%;
+  flex: auto;
+  display: flex;
+  gap: 8px;
+  > div {
+    background-color: white;
+  }
+  .o-page-host {
+    width: 1px;
+    flex: auto;
+    background-color: @layout-body-background;
+    .o-page-tools{
+      height: 40px;
+      background-color: white;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+    }
+    > .element-root {
+      display: flex;
+      flex-direction: column;
+      gap: @page-padding;
+      padding-bottom: @page-padding;
+    }
+
+    .design-slot-wrapper {
+      height: unset;
+    }
+
+    .document-text {
+      > .design-slot-wrapper {
+        display: inline-block;
+        > .element-wrapper {
+          display: inline-block;
+        }
+      }
+    }
+
+    .element-wrapper {
+      &.is-current::before {
+        background-color: rgba(0, 128, 255, 0.1);
+      }
+    }
+  }
+}

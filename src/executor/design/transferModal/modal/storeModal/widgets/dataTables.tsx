@@ -24,6 +24,7 @@ const DataTables: React.FC<IProps> = ({ transfer, current }) => {
           label: form?.name,
           children: (
             <GenerateThingTable
+              form={form.metadata}
               fields={form.fields}
               height={'70vh'}
               selection={{
@@ -35,7 +36,7 @@ const DataTables: React.FC<IProps> = ({ transfer, current }) => {
               dataIndex="attribute"
               dataSource={
                 new CustomStore({
-                  key: 'Id',
+                  key: 'id',
                   async load(_) {
                     return {
                       data: data[key] ?? [],

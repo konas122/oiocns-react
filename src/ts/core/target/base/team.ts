@@ -7,6 +7,7 @@ import { ISession } from '../../chat/session';
 import { IPerson } from '../person';
 import { logger, sleep } from '@/ts/base/common';
 import TargetResources from './resource';
+import { IFile } from '../..';
 
 /** 团队抽象接口类 */
 export interface ITeam extends IEntity<schema.XTarget> {
@@ -18,16 +19,22 @@ export interface ITeam extends IEntity<schema.XTarget> {
   isMyTeam: boolean;
   /** 成员 */
   members: schema.XTarget[];
+  /** 成员总数 */
+  memberCount: number;
+  /** 搜索成员总数 */
+  memberFilterCount: number;
   /** 限定成员类型 */
   memberTypes: TargetType[];
   /** 成员会话 */
   memberChats: ISession[];
+  /** 关系 */
+  relations: string[];
   /** 获取成员会话 */
   findChat(id: string): ISession | undefined;
   /** 深加载 */
   deepLoad(reload?: boolean): Promise<void>;
   /** 加载成员 */
-  loadMembers(reload?: boolean): Promise<schema.XTarget[]>;
+  loadMembers(reload?: boolean, filter?: string): Promise<schema.XTarget[]>;
   /** 创建用户 */
   createTarget(data: model.TargetModel): Promise<ITeam | undefined>;
   /** 更新团队信息 */
@@ -44,6 +51,8 @@ export interface ITeam extends IEntity<schema.XTarget> {
   hasDataAuth(): boolean;
   /** 是否有管理关系的权限 */
   hasRelationAuth(): boolean;
+  /** 是否有超管的权限 */
+  hasSuperAuth(): boolean;
   /** 判断是否拥有某些权限 */
   hasAuthoritys(authIds: string[]): boolean;
   /** 发送组织变更消息 */
@@ -71,16 +80,23 @@ export abstract class Team extends Entity<schema.XTarget> implements ITeam {
       (data) => this._receiveTarget(data),
     );
   }
+  memberFilter: string = '';
+  memberFilterCount: number = 0;
+  memberCount: number = 0;
   memberTypes: TargetType[];
   memberChats: ISession[] = [];
   relations: string[];
+  get superior(): IFile {
+    return this.space;
+  }
   get isMyTeam(): boolean {
     return (
       this.id === this.userId ||
       this.typeName === TargetType.Group ||
       this.hasDataAuth() ||
       this.hasRelationAuth() ||
-      this.members.filter((i) => i.id === this.userId).length > 0
+      this.hasSuperAuth() ||
+      this.user.hasJoinedTeam(this.id)
     );
   }
   findChat(id: string): ISession | undefined {
@@ -99,23 +115,22 @@ export abstract class Team extends Entity<schema.XTarget> implements ITeam {
     }
     return gtags;
   }
-  async loadMembers(_: boolean = false): Promise<schema.XTarget[]> {
-    if (!TargetResources.membersLoaded(this.id)) {
-      const res = await this.getPartMembers(0);
-      res.offset = 0;
-      TargetResources.pullMembers(this.id, res.result || []);
-      while (res.offset + res.limit < res.total) {
-        res.offset += res.limit;
-        console.log(res.offset);
-        var stime = new Date().getTime();
-        const part = await this.getPartMembers(res.offset);
-        console.log(new Date().getTime() - stime);
-        TargetResources.pullMembers(this.id, part.result || []);
+  async loadMembers(reload: boolean = false, filter?: string): Promise<schema.XTarget[]> {
+    if (this.isMyTeam) {
+      if (reload || (filter ?? '') != this.memberFilter) {
+        TargetResources.clear(this.id);
+        this.memberFilter = filter ?? '';
       }
+      const part = await this.getPartMembers(this.members.length, 30);
+      TargetResources.pullMembers(this.id, part.result || []);
       this.members.forEach((i) => this.updateMetadata(i));
-      this.loadMemberChats(this.members, true);
+      if (this.memberFilter === '') {
+        this.memberCount = part.total ?? 0;
+      }
+      this.memberFilterCount = part.total ?? 0;
+      return part.result;
     }
-    return this.members;
+    return [];
   }
   async pullMembers(
     members: schema.XTarget[],
@@ -190,6 +205,7 @@ export abstract class Team extends Entity<schema.XTarget> implements ITeam {
     data.teamName = data.teamName || data.name;
     data.teamCode = data.teamCode || data.code;
     data.remark = data.remark || this.remark;
+    data.public = data.public ?? true;
     const res = await kernel.updateTarget(data);
     if (res.success && res.data?.id) {
       this.setMetadata(res.data);
@@ -222,7 +238,7 @@ export abstract class Team extends Entity<schema.XTarget> implements ITeam {
   operates(): model.OperateModel[] {
     const operates = super.operates();
     if (this.hasRelationAuth()) {
-      operates.unshift(entityOperates.Update, entityOperates.HardDelete);
+      operates.unshift(entityOperates.Update);
     }
     return operates;
   }
@@ -238,6 +254,9 @@ export abstract class Team extends Entity<schema.XTarget> implements ITeam {
   }
   hasRelationAuth(): boolean {
     return this.hasAuthoritys([orgAuth.RelationAuthId]);
+  }
+  hasSuperAuth(): boolean {
+    return this.hasAuthoritys([orgAuth.SuperAuthId]);
   }
   hasAuthoritys(authIds: string[]): boolean {
     authIds = this.space.superAuth?.loadParentAuthIds(authIds) ?? authIds;
@@ -264,53 +283,57 @@ export abstract class Team extends Entity<schema.XTarget> implements ITeam {
       ignoreSelf: false,
       subTargetId: subTargetId,
       targetId: this.id,
+      targetType: 'target',
     });
     return res.success;
   }
 
   async _receiveTarget(data: model.TargetOperateModel) {
-    let message = '';
-    switch (data.operate) {
-      case OperateType.Delete:
-        message = `${data.operater.name}将${data.target.name}删除.`;
-        this.delete(true);
-        break;
-      case OperateType.Update:
-        message = `${data.operater.name}将${data.target.name}信息更新.`;
-        this.setMetadata(data.target);
-        break;
-      case OperateType.Remove:
-        if (data.subTarget) {
-          if (this.id == data.target.id && data.subTarget.id != this.space.id) {
-            if (this.memberTypes.includes(data.subTarget.typeName as TargetType)) {
-              message = `${data.operater.name}把${data.subTarget.name}从${data.target.name}移除.`;
-              await this.removeMembers([data.subTarget], true);
-            }
-          } else {
-            message = await this._removeJoinTarget(data.target);
-          }
-        }
-        break;
-      case OperateType.Add:
-        if (data.subTarget) {
-          if (this.id == data.target.id) {
-            if (this.memberTypes.includes(data.subTarget.typeName as TargetType)) {
-              message = `${data.operater.name}把${data.subTarget.name}与${data.target.name}建立关系.`;
-              await this.pullMembers([data.subTarget], true);
+    if (this.isMyTeam) {
+      let message = '';
+      switch (data.operate) {
+        case OperateType.Delete:
+          message = `${data.operater.name}将${data.target.name}删除.`;
+          this.delete(true);
+          break;
+        case OperateType.Update:
+          message = `${data.operater.name}将${data.target.name}信息更新.`;
+          this.setMetadata(data.target);
+          break;
+        case OperateType.Remove:
+          if (data.subTarget) {
+            if (this.id == data.target.id && data.subTarget.id != this.space.id) {
+              if (this.memberTypes.includes(data.subTarget.typeName as TargetType)) {
+                message = `${data.operater.name}把${data.subTarget.name}从${data.target.name}移除.`;
+                await this.removeMembers([data.subTarget], true);
+              }
             } else {
-              message = await this._addSubTarget(data.subTarget);
+              message = await this._removeJoinTarget(data.target);
             }
-          } else {
-            message = await this._addJoinTarget(data.target);
           }
-        }
-    }
-    if (message.length > 0) {
-      if (data.operater.id != this.user.id) {
-        logger.info(message);
+          break;
+        case OperateType.Add:
+          if (data.subTarget) {
+            if (this.id == data.target.id) {
+              if (this.memberTypes.includes(data.subTarget.typeName as TargetType)) {
+                message = `${data.operater.name}把${data.subTarget.name}与${data.target.name}建立关系.`;
+                await this.pullMembers([data.subTarget], true);
+              } else {
+                message = await this._addSubTarget(data.subTarget);
+              }
+            } else {
+              message = await this._addJoinTarget(data.target);
+            }
+          }
+          break;
       }
+      if (message.length > 0) {
+        if (data.operater.id != this.user.id) {
+          logger.info(message);
+        }
+      }
+      this.changCallback();
     }
-    this.changCallback();
   }
   async _removeJoinTarget(_: schema.XTarget): Promise<string> {
     await sleep(0);
@@ -327,14 +350,14 @@ export abstract class Team extends Entity<schema.XTarget> implements ITeam {
   async notifySession(_: boolean, __: schema.XTarget[]): Promise<void> {
     await sleep(0);
   }
-  async getPartMembers(offset: number): Promise<model.PageResult<schema.XTarget>> {
+  async getPartMembers(offset: number, limit: number = 2000, memberTypes: TargetType[] = this.memberTypes, memberFilter: string = this.memberFilter): Promise<model.PageResult<schema.XTarget>> {
     const res = await kernel.querySubTargetById({
       id: this.id,
-      subTypeNames: this.memberTypes,
+      subTypeNames: memberTypes,
       page: {
         offset: offset,
-        limit: 2000,
-        filter: '',
+        limit: limit,
+        filter: memberFilter,
       },
     });
     return res.data || { offset: offset, limit: 2000, result: [] };

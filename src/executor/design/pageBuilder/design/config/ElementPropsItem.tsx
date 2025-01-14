@@ -1,7 +1,7 @@
 import { DatePicker, Input, InputNumber, Select, Switch } from 'antd';
 import React, { useEffect, useState } from 'react';
 import editors from '.';
-import { ExistTypeMeta, TypeMeta } from '../../core/ElementMeta';
+import { ExistTypeMeta, TypeMeta } from '@/ts/element/ElementMeta';
 
 interface Props {
   target: any;
@@ -12,16 +12,26 @@ interface Props {
 }
 
 export default function ElementPropsItem(props: Props) {
+  const selectData: any[] = [];
   const [value, setValue] = useState<any>(props.target[props.prop] ?? props.meta.default);
+  const [valueArr, setValueArr] = useState<any>(props.target[props.prop] || []);
   // 相当于watch props.target[props.prop]
   useEffect(() => {
     setValue(() => props.target[props.prop]);
+    setValueArr(() => props.target[props.prop]);
   });
 
-  const onValueChange = (v: any) => {
-    props.target[props.prop] = v;
-    setValue(v);
-    props.onValueChange?.(v);
+  const onValueChange = (v: any, multipleType?: boolean) => {
+    if (multipleType) {
+      selectData.push(v);
+      setValueArr(selectData);
+      props.target[props.prop] = selectData;
+      props.onValueChange?.(selectData);
+    } else {
+      props.target[props.prop] = v;
+      setValue(v);
+      props.onValueChange?.(v);
+    }
   };
 
   function renderExistType<T>(meta: ExistTypeMeta<T>) {
@@ -34,15 +44,30 @@ export default function ElementPropsItem(props: Props) {
       <Editor
         {...(meta.editorConfig || {})}
         prop={props.prop}
-        value={value}
-        onChange={onValueChange}
+        value={meta.multiple ? valueArr : value}
+        multiple={meta.multiple}
+        readonly={meta.readonly}
+        onChange={(e: any) => {
+          onValueChange(e, meta.multiple);
+        }}
       />
     );
   }
 
   function renderComponent(meta: TypeMeta) {
     switch (meta.type) {
+      case 'json':
       case 'string':
+        if (meta.inputType == 'textarea') {
+          return (
+            <Input.TextArea
+              readOnly={meta.readonly}
+              value={value}
+              rows={5}
+              onChange={(e) => onValueChange(e.target.value)}
+            />
+          );
+        }
         return (
           <Input
             readOnly={meta.readonly}
@@ -57,12 +82,12 @@ export default function ElementPropsItem(props: Props) {
             readOnly={meta.readonly}
             value={value}
             onChange={(e) => onValueChange(e)}
+            min={meta.min}
+            max={meta.max}
           />
         );
       case 'boolean':
-        return (
-          <Switch style={{ width: '100%' }} checked={value} onChange={onValueChange} />
-        );
+        return <Switch checked={value} onChange={(e) => onValueChange(e)} />;
       case 'date':
         return (
           <DatePicker
@@ -76,7 +101,7 @@ export default function ElementPropsItem(props: Props) {
           <Select
             style={{ width: '100%' }}
             value={value}
-            onChange={onValueChange}
+            onChange={(e) => onValueChange(e)}
             allowClear
             options={meta.options}
           />

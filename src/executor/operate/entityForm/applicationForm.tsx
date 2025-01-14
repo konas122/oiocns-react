@@ -1,11 +1,16 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { ProFormColumnsType } from '@ant-design/pro-components';
 import SchemaForm from '@/components/SchemaForm';
-import { IApplication, IDirectory } from '@/ts/core';
+import { IApplication, IAuthority, IDirectory } from '@/ts/core';
 import UploadItem from '../../tools/uploadItem';
 import { EntityColumns } from './entityColumns';
 import { schema } from '@/ts/base';
-
+import { ProFormInstance } from '@ant-design/pro-form';
+import { generateCodeByInitials } from '@/utils/tools';
+import UploadBanners from '../../tools/uploadBanners';
+import orgCtrl from '@/ts/controller';
+import useAsyncLoad from '@/hooks/useAsyncLoad';
+import { DefaultOptionType } from 'antd/lib/select';
 interface Iprops {
   formType: string;
   current: IDirectory | IApplication;
@@ -22,6 +27,49 @@ const ApplicationForm = (props: Iprops) => {
   let application: IApplication | undefined;
   const readonly = props.formType === 'remarkApp';
   let initialValue: any = props.current.metadata;
+  const formRef = useRef<ProFormInstance>();
+  const [treeData, setTreeData] = useState<any[]>([]);
+  const [applyAuths, setApplyAuths] = useState<any[]>([]);
+  const [loaded] = useAsyncLoad(async () => {
+    const getTreeData = (targets: IAuthority[]): DefaultOptionType[] => {
+      return targets.map((item: IAuthority) => {
+        return {
+          label: item.name,
+          value: item.id,
+          children:
+            item.children && item.children.length > 0 ? getTreeData(item.children) : [],
+        };
+      });
+    };
+    const getTreeValue = (applyAuth: string, auths: IAuthority[]): string[] => {
+      const applyAuths: string[] = [];
+      if (applyAuth == '0') {
+        return ['0'];
+      }
+      for (const auth of auths) {
+        if (auth.id == applyAuth) {
+          return [auth.id];
+        }
+        const childAuth = getTreeValue(applyAuth, auth.children);
+        if (childAuth.length > 0) {
+          applyAuths.push(auth.id, ...childAuth);
+        }
+      }
+      return applyAuths;
+    };
+    const companys = orgCtrl.user.companys.filter((item) => {
+      return item.belongId === props.current.spaceId;
+    });
+    let tree = await companys[0]?.loadSuperAuth(false);
+    if (tree) {
+      setApplyAuths(getTreeValue(initialValue.applyAuth ?? '0', [tree]));
+      setTreeData([
+        ...[{ label: '全员', value: '0', children: [] }],
+        ...getTreeData([tree]),
+      ]);
+    }
+  });
+  if (!loaded) return <></>;
   switch (props.formType) {
     case 'newApp':
       title = '新建应用';
@@ -102,6 +150,20 @@ const ApplicationForm = (props: Iprops) => {
       },
     },
     {
+      title: '设置权限',
+      readonly: readonly,
+      colProps: { span: 24 },
+      dataIndex: 'applyAuths',
+      valueType: 'cascader',
+      initialValue: applyAuths,
+      fieldProps: {
+        showCheckedStrategy: 'SHOW_CHILD',
+        changeOnSelect: true,
+        options: treeData,
+        displayRender: (labels: string[]) => labels[labels.length - 1],
+      },
+    },
+    {
       title: '资源',
       dataIndex: 'resource',
       colProps: { span: 24 },
@@ -121,8 +183,28 @@ const ApplicationForm = (props: Iprops) => {
       rules: [{ required: true, message: '备注信息为必填项' }],
     },
   });
+  if (~['newApp', 'updateApp', 'remarkApp'].indexOf(props.formType)) {
+    columns.push({
+      title: '封面',
+      dataIndex: 'banners',
+      renderFormItem: (_, __, form) => {
+        const { banners } = props.current.metadata;
+        const bannersList = banners ? JSON.parse(banners) : [];
+        return (
+          <UploadBanners
+            banners={Array.isArray(bannersList) ? bannersList : [bannersList]}
+            onChanged={(icon) => {
+              form.setFieldValue('banners', icon);
+            }}
+            directory={props.current.directory}
+          />
+        );
+      },
+    });
+  }
   return (
     <SchemaForm<schema.XApplication>
+      formRef={formRef}
       open
       title={title}
       width={640}
@@ -135,6 +217,11 @@ const ApplicationForm = (props: Iprops) => {
       onOpenChange={(open: boolean) => {
         if (!open) {
           props.finished();
+        }
+      }}
+      onValuesChange={async (values: any) => {
+        if (Object.keys(values)[0] === 'name') {
+          formRef.current?.setFieldValue('code', generateCodeByInitials(values['name']));
         }
       }}
       onFinish={async (values) => {

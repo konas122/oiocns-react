@@ -1,15 +1,24 @@
 /* eslint-disable no-redeclare */
-
-/*---------------------------------------------------------------------------------------------
- *  Copyright (c) Microsoft Corporation. All rights reserved.
- *  Licensed under the MIT License. See License.txt in the project root for license information.
- *--------------------------------------------------------------------------------------------*/
-
 /**
  * @returns whether the provided parameter is a JavaScript String or not.
  */
 export function isString(str: unknown): str is string {
   return typeof str === 'string';
+}
+
+/* eslint-disable no-redeclare */
+/**
+ * @returns whether the provided parameter is a JavaScript String or not.
+ */
+export function isSnowflakeId(str: unknown): str is string {
+  if (str && typeof str === 'string' && str.length > 10) {
+    const snowflakeIdNum = parseInt(str, 10);
+    if (isNaN(snowflakeIdNum) || snowflakeIdNum < 0) {
+      return false;
+    }
+    return /^\d+$/.test(str);
+  }
+  return false;
 }
 
 /**

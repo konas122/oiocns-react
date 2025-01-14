@@ -21,7 +21,8 @@ export class TxtHubProtocol implements IHubProtocol {
   public readonly name: string = 'txt';
   /** @inheritDoc */
   public readonly version: number = 1;
-
+  /** @inheritDoc */
+  public readonly format: TxtMessageFormat = new TxtMessageFormat();
   /** @inheritDoc */
   public readonly transferFormat: TransferFormat = TransferFormat.Binary;
 
@@ -40,7 +41,7 @@ export class TxtHubProtocol implements IHubProtocol {
     }
 
     // Parse the messages
-    const messages = TxtMessageFormat.parse(input);
+    const messages = this.format.parse(input);
 
     const hubMessages: HubMessage[] = [];
     for (const message of messages) {
@@ -84,7 +85,7 @@ export class TxtHubProtocol implements IHubProtocol {
    * @returns {ArrayBuffer} A arrayBuffer containing the serialized representation of the message.
    */
   public writeMessage(message: HubMessage): ArrayBuffer {
-    return TxtMessageFormat.write(JSON.stringify(message));
+    return this.format.write(JSON.stringify(message));
   }
 
   private _isInvocationMessage(message: InvocationMessage): void {

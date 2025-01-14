@@ -50,7 +50,7 @@ const MemberBox: React.FC<MemberBoxProps> = (props) => {
     <SelectBox
       {...props}
       readOnly={props.isOperator}
-      showClearButton={false}
+      showClearButton={true}
       value={selectTarget?.id}
       displayExpr={'name'}
       valueExpr={'id'}

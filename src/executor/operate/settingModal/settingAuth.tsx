@@ -5,11 +5,11 @@ import EntityIcon from '@/components/Common/GlobalComps/entityIcon';
 import MainLayout from '@/components/MainLayout/minLayout';
 import useMenuUpdate from '@/hooks/useMenuUpdate';
 import EntityInfo from '@/components/Common/EntityInfo';
-import * as im from 'react-icons/im';
 import { MenuItemType, OperateMenuType } from 'typings/globelType';
 import AuthForm from './subModal/authForm';
 import { Descriptions, Divider, Space, Typography } from 'antd';
 import { Controller } from '@/ts/controller';
+import OrgIcons from '@/components/Common/GlobalComps/orgIcons';
 
 interface IProps {
   space: IBelong;
@@ -116,7 +116,7 @@ const loadSettingMenu = (authority: IAuthority): MenuItemType => {
     item: authority,
     menus: loadAuthorityMenus(authority),
     children: createMenu(authority.children),
-    icon: <EntityIcon notAvatar={true} entity={authority.metadata} size={18} />,
+    icon: <EntityIcon entity={authority.metadata} size={18} />,
   };
 };
 
@@ -130,7 +130,7 @@ const createMenu = (authoritys: IAuthority[]): MenuItemType[] => {
       label: auth.name,
       itemType: '权限',
       menus: loadAuthorityMenus(auth),
-      icon: <EntityIcon notAvatar={true} entity={auth.metadata} size={18} />,
+      icon: <EntityIcon entity={auth.metadata} size={18} />,
       children: createMenu(auth.children),
     });
   }
@@ -143,7 +143,7 @@ const loadAuthorityMenus = (item: IAuthority) => {
   if (item.space.hasRelationAuth()) {
     items.push({
       key: '新增',
-      icon: <im.ImPlus />,
+      icon: <OrgIcons type="/toolbar/add" />,
       label: '新增权限',
       model: 'outside',
     });
@@ -151,12 +151,12 @@ const loadAuthorityMenus = (item: IAuthority) => {
       items.push(
         {
           key: '编辑',
-          icon: <im.ImCog />,
+          icon: <OrgIcons type="/toolbar/edit" />,
           label: '编辑权限',
         },
         {
           key: '删除',
-          icon: <im.ImBin />,
+          icon: <OrgIcons type="/toolbar/delete" />,
           label: '删除权限',
           beforeLoad: async () => {
             return await item.delete();

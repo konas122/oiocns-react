@@ -1,15 +1,12 @@
-import { IForm, XCollection } from '..';
-import { Command, model, schema } from './../../base';
-import orgCtrl from './../../controller';
+import { IForm, XCollection, IReport } from '..';
+import { model, schema } from './../../base';
 
 // 暂存箱
 export interface ITemporaryStorage {
-  // 触发器
-  command: Command;
   // 键
   key: string;
   // 表单
-  form: IForm;
+  form: IForm | IReport;
   // 集合
   coll: XCollection<schema.XThing>;
   /** 加载内容 */
@@ -27,15 +24,9 @@ export interface ITemporaryStorage {
 }
 
 export class TemporaryStorage implements ITemporaryStorage {
-  constructor(form: IForm) {
+  constructor(form: IForm | IReport) {
     this.form = form;
-    this.coll = orgCtrl.user.directory.resource.genColl(this.key);
-    this.command = new Command();
-    this.coll?.subscribe([this.key], (data: { key: string; operate: string }) => {
-      if (data.key == this.key) {
-        this.command.emitter('暂存', data.key);
-      }
-    });
+    this.coll = this.form.directory.target.user.directory.resource.genColl(this.key);
   }
 
   get key(): string {
@@ -43,15 +34,10 @@ export class TemporaryStorage implements ITemporaryStorage {
   }
 
   coll: XCollection<schema.XThing>;
-  form: IForm;
-  command: Command;
+  form: IForm | IReport;
 
   async create(data: schema.XThing[]): Promise<schema.XThing[]> {
-    const res = await this.coll.replaceMany(data);
-    if (res) {
-      await this.coll.notity({ operate: 'create', key: this.key });
-    }
-    return res;
+    return await this.coll.replaceMany(data);
   }
 
   async remove(data: schema.XThing[]): Promise<boolean> {
@@ -62,12 +48,7 @@ export class TemporaryStorage implements ITemporaryStorage {
   }
 
   async count(): Promise<number> {
-    const res = await this.coll.loadResult({
-      options: { match: {} },
-      requireTotalCount: true,
-      skip: 0,
-      take: 1,
-    });
+    const res = await this.coll.loadResult({ isCountQuery: true });
     return res.totalCount;
   }
 
@@ -89,7 +70,16 @@ export class TemporaryStorage implements ITemporaryStorage {
       skip: 0,
       take: things.length,
     });
-    return res.data;
+    return res.data.map((item: any) => {
+      const newItem = { ...item };
+      for (const field of this.form.fields) {
+        if (newItem[field.code]) {
+          newItem[field.id] = newItem[field.code];
+          delete newItem[field.code];
+        }
+      }
+      return newItem;
+    });
   }
 
   async loadContent(): Promise<schema.XThing[]> {

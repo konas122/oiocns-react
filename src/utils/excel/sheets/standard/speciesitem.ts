@@ -137,7 +137,7 @@ export class ClassifyItemHandler extends i.SheetHandler<ClassifyItemSheet> {
       );
       const group = list.GroupBy((item) => item.item.speciesCode);
       Object.keys(group).forEach((key) => {
-        const tree = new i.Tree(
+        const tree = new t.Tree(
           group[key],
           (item) => item.item.info,
           (item) => item.item.parentInfo,
@@ -163,7 +163,7 @@ export class ClassifyItemHandler extends i.SheetHandler<ClassifyItemSheet> {
   async operating(excel: t.IExcel, onItemCompleted: () => void): Promise<void> {
     const groups = new t.List(this.sheet.data).GroupBy((item) => item.speciesCode);
     for (const key of Object.keys(groups)) {
-      const tree = new i.Tree<t.SpeciesItem>(
+      const tree = new t.Tree<t.SpeciesItem>(
         groups[key],
         (item) => item.info,
         (item) => item.parentInfo,
@@ -178,7 +178,7 @@ export class ClassifyItemHandler extends i.SheetHandler<ClassifyItemSheet> {
    */
   async recursion(
     species: t.SpeciesData,
-    root: i.Node<t.SpeciesItem>,
+    root: t.Node<t.SpeciesItem>,
     excel: t.IExcel,
     onItemCompleted: () => void,
   ) {

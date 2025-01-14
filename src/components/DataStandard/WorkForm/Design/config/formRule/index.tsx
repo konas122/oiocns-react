@@ -2,7 +2,7 @@ import { IForm } from '@/ts/core';
 import React, { useState } from 'react';
 import Rule from './rule';
 import useAsyncLoad from '@/hooks/useAsyncLoad';
-import { FieldInfo } from '@/ts/base/model';
+import { FieldInfo } from 'typings/globelType';
 
 interface IAttributeProps {
   current: IForm;
@@ -15,13 +15,14 @@ const FormRuleConfig: React.FC<IAttributeProps> = ({ current }) => {
     const ss = resultFields.map((a) => {
       switch (a.valueType) {
         case '数值型':
+        case '货币型':
           return {
             id: a.id,
             name: a.code,
             dataField: a.code,
             caption: a.name,
             dataType: 'number',
-            fieldType: '数值型',
+            fieldType: a.valueType,
           };
         case '日期型':
           return {
@@ -95,24 +96,7 @@ const FormRuleConfig: React.FC<IAttributeProps> = ({ current }) => {
       ...(ss as FieldInfo[]),
     ]);
   }, [current]);
-  const loadFilterItem = () => {
-    return [
-      {
-        key: '1',
-        title: '表格过滤规则',
-        fields: fields,
-        filter: current.metadata.options?.dataRange,
-        target: current.directory.target.space,
-      },
-      {
-        key: '2',
-        title: '办事过滤规则',
-        fields: fields,
-        filter: current.metadata.options?.workDataRange,
-        target: current.directory.target.space,
-      },
-    ];
-  };
+
   return (
     <div
       style={{

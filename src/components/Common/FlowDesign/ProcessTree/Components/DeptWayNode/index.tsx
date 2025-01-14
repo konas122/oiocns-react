@@ -4,12 +4,13 @@ import { AiOutlineClose } from 'react-icons/ai';
 import cls from './index.module.less';
 import SelectOrg from '../selectOrg';
 import { ITarget } from '@/ts/core';
-import { dataType } from '@/components/Common/FlowDesign/processType';
+import { dataType } from '@/utils/work';
 
 type DeptWayNodeProps = {
   onInsertNode: Function;
   onDelNode: Function;
   onSelected: Function;
+  isGroupWork: boolean;
   config: any;
   level: any;
   target?: ITarget;
@@ -93,7 +94,11 @@ const DeptWayNode: React.FC<DeptWayNodeProps> = (props: DeptWayNodeProps) => {
       <div className={cls['node-footer']}>
         <div className={cls['btn']}>
           {props.isEdit && (
-            <InsertButton allowBranche onInsertNode={props.onInsertNode} />
+            <InsertButton
+              allowBranche
+              onInsertNode={props.onInsertNode}
+              isGroupWork={props.isGroupWork}
+            />
           )}
         </div>
       </div>

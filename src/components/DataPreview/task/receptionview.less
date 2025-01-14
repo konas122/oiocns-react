@@ -1,0 +1,53 @@
+.reception-view {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  .reception-view--toolbar {
+    display: flex;
+    position: relative;
+    height: 60px;
+    padding: 5px;
+    align-items: center;
+    border-bottom: 1px solid #ebeef5;
+    gap: 10px;
+    .ogo-tabs  {
+      align-self: flex-end;
+      .ogo-tabs-nav {
+        margin-bottom: 0;
+      }
+    }
+  }
+
+  .reception-view--work {
+    display: flex;
+    height: 60px;
+  }
+  .workform-wrapper {
+    height: 1px;
+    flex: auto;
+    > div {
+      height: 100%;
+      > .ogo-tabs {
+        height: 100%;
+        .ogo-tabs-content {
+          height: 100%;
+          .ogo-tabs-tabpane {
+            height: 100%;
+            .report-form-viewer {
+              height: 100%;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .tasklist-wrapper {
+    padding: 16px;
+    flex: auto;
+    overflow: auto;
+  }
+}
+
+

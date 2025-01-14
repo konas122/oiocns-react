@@ -27,7 +27,7 @@ export default class StoreHub implements IDisposable {
    * @param timeout 超时检测默认8000ms
    * @param interval 心跳间隔默认3000ms
    */
-  constructor(url: string, protocol = 'json', timeout = 6000, interval = 2000) {
+  constructor(url: string, protocol = 'json', timeout = 10000, interval = 2000) {
     this._isStarted = false;
     this._timeout = timeout;
     this._connectedCallbacks = [];
@@ -171,8 +171,10 @@ export default class StoreHub implements IDisposable {
         if (!res.success) {
           if (res.code === 401) {
             logger.unauth();
-          } else if (res.msg != '' && !res.msg.includes('不在线')) {
-            logger.warn('操作失败,' + res.msg);
+          } else if (res.msg != '' && !res.msg.includes('不在线') && !res.msg.includes('超时')) {
+            if (methodName !== 'HttpForward') {
+              logger.warn("请求出错:" + res.msg);
+            }
           }
         }
         resolve(res);
@@ -185,7 +187,15 @@ export default class StoreHub implements IDisposable {
         }
         resolve(badRequest(msg));
       };
-      if (this.isConnected) {
+      if (methodName === 'createTemporaryToken') {
+        this.restRequest(
+          'get',
+          '/orginone/kernel/rest/createTemporaryToken',
+          undefined,
+        )
+          .then(success)
+          .catch(error);
+      } else if (this.isConnected) {
         this._connection
           .invoke(methodName, ...args)
           .then(success)

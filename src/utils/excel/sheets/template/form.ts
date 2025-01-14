@@ -11,10 +11,8 @@ export class FormSheet extends i.Sheet<t.Form> {
         { title: '表单类型', dataIndex: 'typeName', valueType: '描述型' },
         { title: '表单名称', dataIndex: 'name', valueType: '描述型' },
         { title: '表单代码', dataIndex: 'code', valueType: '描述型' },
+        { title: '存储位置', dataIndex: 'collName', valueType: '描述型' },
         { title: '备注信息', dataIndex: 'remark', valueType: '描述型' },
-        { title: '允许新增', dataIndex: 'allowAdd', valueType: '描述型' },
-        { title: '允许编辑', dataIndex: 'allowEdit', valueType: '描述型' },
-        { title: '允许选择', dataIndex: 'allowSelect', valueType: '描述型' },
         { title: '主键', dataIndex: 'id', valueType: '描述型' },
         { title: '目录主键', dataIndex: 'directoryId', valueType: '描述型' },
       ],
@@ -72,29 +70,26 @@ export class FormHandler extends i.SheetHandler<FormSheet> {
         { res: !(item.typeName == '表单'), error: '表单类型只能填写表单' },
         { res: !hasDir, error: `未获取到目录代码：${item.directoryCode}` },
       ]);
-      if (item.allowAdd) {
-        allErrors.push(
-          ...this.singleAssert(index, {
-            res: !bool.includes(item.allowAdd),
-            error: '允许新增只能填写是或否',
-          }),
+      if (item.collName) {
+        const names = item.collName.split('-');
+        errors.push(
+          ...this.assert(index, [
+            {
+              res: names.length != 2,
+              error: '存储位置格式错误，正确格式为：名称-别名',
+            },
+          ]),
         );
-      }
-      if (item.allowEdit) {
-        allErrors.push(
-          ...this.singleAssert(index, {
-            res: !bool.includes(item.allowEdit),
-            error: '允许编辑只能填写是或否',
-          }),
-        );
-      }
-      if (item.allowSelect) {
-        allErrors.push(
-          ...this.singleAssert(index, {
-            res: !bool.includes(item.allowSelect),
-            error: '允许选择只能填写是或否',
-          }),
-        );
+        if (names.length == 2) {
+          errors.push(
+            ...this.assert(index, [
+              {
+                res: !/^[_a-z-0-9]{5,30}$/.test(names[0]),
+                error: "集合名称必须是长度为5~30个字符的小写英文字母、数字或('-','_')!",
+              },
+            ]),
+          );
+        }
       }
       allErrors.push(...errors);
     });
@@ -193,21 +188,6 @@ export class FormHandler extends i.SheetHandler<FormSheet> {
     });
     return allErrors;
   }
-  private setFormDefault(form: t.Form) {
-    form.options = form.options ?? { itemWidth: 300 };
-    if (form.allowAdd) {
-      form.options.allowAdd = form.allowAdd == '是';
-    }
-    if (form.allowEdit) {
-      form.options.allowEdit = form.allowEdit == '是';
-    }
-    if (form.allowSelect) {
-      form.options.allowSelect = form.allowSelect == '是';
-    }
-    delete form.allowAdd;
-    delete form.allowEdit;
-    delete form.allowSelect;
-  }
   private setAttrDefault(attr: t.Attribute) {
     attr.options = attr.options ?? {};
     if (attr.readOnly) {
@@ -239,6 +219,22 @@ export class FormHandler extends i.SheetHandler<FormSheet> {
     delete attr.species;
     delete attr.fixed;
   }
+  async createColl(): Promise<void> {
+    const set = new Set<{ id: string; alias: string }>();
+    this.sheet.data
+      .filter((item) => item.collName)
+      .forEach((item) => {
+        const names = item.collName!.split('-');
+        item.collName = 'formdata-' + names[0];
+        set.add({ id: names[0], alias: names[1] });
+      });
+    const manager = this.sheet.dir.target.space.activated?.dataManager;
+    if (manager) {
+      for (const item of set) {
+        await manager.createColl(item as t.schema.XDefinedColl);
+      }
+    }
+  }
   /**
    * 更新/创建属性
    * @param index 行索引
@@ -249,6 +245,7 @@ export class FormHandler extends i.SheetHandler<FormSheet> {
     const handler = excel.getHandler('表单特性');
     const attrData = new t.List(handler?.sheet.data ?? []);
     const attrGroup = attrData.GroupBy((item) => item.formCode);
+    await this.createColl();
     for (const row of this.sheet.data) {
       const dir = excel.context.directories[row.directoryCode];
       row.directoryId = dir.meta.id;
@@ -256,7 +253,6 @@ export class FormHandler extends i.SheetHandler<FormSheet> {
       if (old) {
         t.assignment(old.meta, row);
       }
-      this.setFormDefault(row);
       let res = await this.sheet.coll.replace(row);
       Object.assign(row, res);
       let oldMap: { [key: string]: t.schema.XAttribute } = {};

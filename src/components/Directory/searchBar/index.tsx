@@ -1,8 +1,7 @@
 import React from 'react';
 import { Button, Dropdown, MenuProps, Space } from 'antd';
-import { RiMore2Fill } from 'react-icons/ri';
 import { TextBox } from 'devextreme-react';
-import { Theme } from '@/config/theme';
+import OrgIcons from '@/components/Common/GlobalComps/orgIcons';
 
 interface IProps {
   value: string;
@@ -18,11 +17,10 @@ const SearchBar: React.FC<IProps> = (props) => {
         <TextBox
           width="100%"
           mode="search"
-          placeholder="搜索"
+          placeholder="输入任意内容按下回车键搜索."
           showClearButton
           value={props.value}
           stylingMode="filled"
-          valueChangeEvent="input"
           onValueChanged={(e) => {
             props.onValueChanged(e.value ?? '');
           }}
@@ -41,11 +39,7 @@ const SearchBar: React.FC<IProps> = (props) => {
             )}
             placement="bottom"
             trigger={['click', 'contextMenu']}>
-            <RiMore2Fill
-              color={Theme.FocusColor}
-              fontSize={22}
-              style={{ cursor: 'pointer' }}
-            />
+            <OrgIcons type="/toolbar/more" size={22} notAvatar title="更多" />
           </Dropdown>
         )}
       </Space>

@@ -1,21 +1,24 @@
-import { PageElement } from '../core/PageElement';
-import HostManagerBase from '../render/HostManager';
-import { IPageTemplate } from '@/ts/core/thing/standard/page';
+import { PageElement } from '@/ts/element/PageElement';
+import HostManagerBase from '@/components/PageElement/render/HostManager';
 import { IDisposable } from '@/ts/base/common';
-import { ElementInit } from '../core/ElementTreeManager';
-import { message } from 'antd';
+import { ElementInit } from '@/ts/element/ElementTreeManager';
+import { IElementHost, XElementHost } from '@/ts/element/standard';
 
-export default class DesignerManager
-  extends HostManagerBase<'design'>
+export default class DesignerManager<E extends XElementHost = XElementHost>
+  extends HostManagerBase<'design', E>
   implements IDisposable
 {
-  constructor(pageFile: IPageTemplate) {
+  constructor(pageFile: IElementHost<E>) {
     super('design', pageFile);
     this.currentElement = this.rootElement;
+    if (this.page.typeName == '文档模板') {
+      this.accepts = ['Container', 'Document'];
+    } else {
+      this.accepts = ['Container', 'Element', 'Template'];
+    }
   }
 
   dispose() {
-    console.info('DesignerManager disposed');
     this.currentElement = null;
   }
 
@@ -33,7 +36,7 @@ export default class DesignerManager
       this.treeManager.changeParent(v, this.treeManager.root.id);
       this.currentElement = null;
     } catch (error) {
-      message.error(error instanceof Error ? error.message : String(error));
+      super.error(error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -56,6 +59,8 @@ export default class DesignerManager
     this.emitter('current', 'change');
   }
 
+  readonly accepts: string[];
+
   addElement<E extends PageElement>(
     kind: E['kind'],
     name: string,
@@ -69,7 +74,7 @@ export default class DesignerManager
       this.emitter('elements', 'change');
       return e as any;
     } catch (error) {
-      message.error(error instanceof Error ? error.message : String(error));
+      super.error(error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -80,7 +85,7 @@ export default class DesignerManager
       this.emitter('elements', 'change');
       this.currentElement = null;
     } catch (error) {
-      message.error(error instanceof Error ? error.message : String(error));
+      super.error(error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -90,7 +95,7 @@ export default class DesignerManager
       this.treeManager.changeParent([e], targetId, slotName);
       this.emitter('elements', 'change');
     } catch (error) {
-      message.error(error instanceof Error ? error.message : String(error));
+      super.error(error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -100,7 +105,7 @@ export default class DesignerManager
       this.treeManager.moveElement(e, targetId, position);
       this.emitter('elements', 'change');
     } catch (error) {
-      message.error(error instanceof Error ? error.message : String(error));
+      super.error(error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

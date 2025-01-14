@@ -18,16 +18,12 @@ const DepartmentBox: React.FC<DepartmentBoxProps> = (props) => {
   const [targets, setTargets] = useState<DTarget[]>();
   const [selectTarget, setSelectTarget] = useState<DTarget>();
   useEffect(() => {
-    props.onValueChanged?.apply(this, [{ value: selectTarget?.id } as any]);
-  }, [selectTarget]);
-  useEffect(() => {
-    if (props.readOnly) {
-      if (props.defaultValue && props.defaultValue.length > 5) {
-        orgCtrl.user.findEntityAsync(props.defaultValue).then((value) => {
-          setSelectTarget(value as DTarget);
-        });
-      }
-    } else {
+    if (props.value && props.value.length > 5) {
+      orgCtrl.user.findEntityAsync(props.value).then((value) => {
+        setSelectTarget(value as DTarget);
+      });
+    }
+    if (!props.readOnly) {
       const company = orgCtrl.user.companys.find((i) => i.id === props.target.id);
       if (company) {
         setTargets(loadDepartments(company.departments, undefined));
@@ -71,6 +67,8 @@ const DepartmentBox: React.FC<DepartmentBoxProps> = (props) => {
         parentIdExpr="parentId"
         selectionMode="single"
         selectByClick={true}
+        searchEnabled={props.searchEnabled ?? false}
+        searchExpr="name"
         onItemClick={() => setOpened(false)}
         itemRender={(e) => itemRender(e, false)}
         onItemSelectionChanged={(e) => {
@@ -86,6 +84,7 @@ const DepartmentBox: React.FC<DepartmentBoxProps> = (props) => {
     <DropDownBox
       {...props}
       opened={opened}
+      showClearButton={true}
       dataSource={targets}
       readOnly={props.readOnly}
       value={selectTarget?.id}

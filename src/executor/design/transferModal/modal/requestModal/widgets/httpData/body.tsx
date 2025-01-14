@@ -1,6 +1,5 @@
+import { MonacoEditor } from '@/components/Common/MonacoEditor';
 import { model } from '@/ts/base';
-import { langs } from '@uiw/codemirror-extensions-langs';
-import CodeMirror from '@uiw/react-codemirror';
 import { Dropdown } from 'antd';
 import React, { useState } from 'react';
 
@@ -27,14 +26,7 @@ const Body: React.FC<IProps> = ({ node }) => {
         },
       }}
       trigger={['contextMenu']}>
-      <CodeMirror
-        style={{ marginRight: 4 }}
-        width={'calc(50vw - 12px)'}
-        height={'calc(100vh - 196px)'}
-        value={value}
-        extensions={[langs.json()]}
-        onChange={onChange}
-      />
+      <MonacoEditor value={value} language="json" onChange={onChange} />
     </Dropdown>
   );
 };

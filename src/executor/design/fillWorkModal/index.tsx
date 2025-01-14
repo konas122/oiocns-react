@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { IWork } from '@/ts/core';
-import { Button, Card, Spin, message } from 'antd';
+import { Button, Card, message } from 'antd';
 import FullScreenModal from '@/components/Common/fullScreen';
 import useAsyncLoad from '@/hooks/useAsyncLoad';
 import { model, schema } from '@/ts/base';
 import OpenFileDialog from '@/components/OpenFileDialog';
 import { TextBox } from 'devextreme-react';
 import SelectIdentity from '@/components/Common/SelectIdentity';
+import { AddNodeType, searchChildNodes } from '@/utils/work';
+import LoadingView from '@/components/Common/Loading';
 
 type IProps = {
   current: IWork;
@@ -15,26 +17,27 @@ type IProps = {
 
 type IGprops = {
   current: IWork;
+  finished: () => void;
   node: model.WorkNodeModel;
 };
-const GatewayInfo: React.FC<IGprops> = ({ current, node }) => {
+const GatewayInfo: React.FC<IGprops> = ({ current, node, finished }) => {
   const [openType, setOpenType] = useState<string>();
   const [identity, setIdentity] = useState<schema.XIdentity>();
   const [define, setDefine] = useState<schema.XWorkDefine>();
   useEffect(() => {
-    const gateway = current.gatewayInfo!.find((a) => a.nodeId == node.id);
-    setIdentity(gateway?.identity);
-    setDefine(gateway?.define);
-  }, []);
-  useEffect(() => {
-    if (identity && define) {
-      current.bingdingGateway(node.id, identity, define).then((success) => {
-        if (success) {
-          message.info('绑定成功!');
-        }
-      });
+    const gateway = current.gatewayInfo!.find(
+      (a) =>
+        a.nodeId == node.primaryId && a.targetId == current.directory.target.space.id,
+    );
+    if (gateway) {
+      setIdentity(gateway?.identity);
+      setDefine({
+        primaryId: gateway.defineId,
+        name: gateway.defineName,
+        shareId: gateway.defineShareId,
+      } as schema.XWorkDefine);
     }
-  }, [identity, define]);
+  }, []);
   return (
     <Card
       key={node.id}
@@ -68,13 +71,29 @@ const GatewayInfo: React.FC<IGprops> = ({ current, node }) => {
             }}>
             {identity ? '重绑角色' : '绑定角色'}
           </Button>
+          <Button
+            style={{ display: 'inline-block', marginRight: 10 }}
+            onClick={() => {
+              if (identity && define) {
+                current
+                  .bingdingGateway(node.primaryId, identity, define)
+                  .then((success) => {
+                    if (success) {
+                      message.info('绑定成功!');
+                      finished();
+                    }
+                  });
+              }
+            }}>
+            保存
+          </Button>
         </>
       }>
       {openType == 'define' && (
         <OpenFileDialog
-          title={'选中办事'}
+          title={'选择办事'}
           rootKey={'disk'}
-          accepts={['办事']}
+          accepts={['办事', '集群模板']}
           allowInherited
           excludeIds={[current.id]}
           onCancel={() => setOpenType(undefined)}
@@ -111,9 +130,9 @@ const FillWorkModal: React.FC<IProps> = ({ current, finished }) => {
   });
   if (!loaded) {
     return (
-      <Spin tip={'配置信息加载中...'}>
-        <div style={{ width: '100%', height: '100%' }}></div>
-      </Spin>
+      <div className="loading-page">
+        <LoadingView text="信息加载中..." />
+      </div>
     );
   }
 
@@ -126,10 +145,14 @@ const FillWorkModal: React.FC<IProps> = ({ current, finished }) => {
       okText="发布"
       cancelText="取消"
       title={`事项[${current.name}]设计`}
+      slot={<div id="modal-save"></div>}
       onCancel={() => finished()}>
-      {current.gatewayNodes?.map((a) => {
-        return <GatewayInfo key={a.id} current={current} node={a} />;
-      })}
+      {current.node &&
+        searchChildNodes(current.node, [], [AddNodeType.GATEWAY])?.map((a) => {
+          return (
+            <GatewayInfo key={a.id} current={current} node={a} finished={finished} />
+          );
+        })}
     </FullScreenModal>
   );
 };

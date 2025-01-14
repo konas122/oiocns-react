@@ -1,5 +1,22 @@
-.content1 {
-  height: calc(100% - 120px);
+.content {
+  height: 100%;
+  .examineContent {
+    height: calc(100% - 80px);
+    overflow: auto;
+    .workForm {
+      :global(.ogo-card-body) {
+        padding: 0px 20px;
+      }
+    }
+  }
+}
+.examineProcess {
+  :global(.ogo-card-body) {
+    padding: 12px;
+  }
+  :global(.ogo-collapse-header) {
+    padding: 12px !important;
+  }
 }
 
 .bootom_right {
@@ -11,4 +28,121 @@
   border-radius: 0px;
   width: calc(100% - 272px);
   background-color: rgb(250, 250, 250);
+}
+
+.work-content {
+  height: 100%;
+  .work-content-card {
+    border: none;
+  }
+  :global {
+    .ogo-tabs-nav::before {
+      border: none !important;
+    }
+  }
+}
+.timeline {
+  .timelineReview {
+    & > :global(.ogo-timeline-item-tail) {
+      border-color: #0052d9;
+    }
+  }
+  .timelineSuccess {
+    & > :global(.ogo-timeline-item-tail) {
+      border-color: #32bd41;
+    }
+  }
+  .timelineRefuse {
+    & > :global(.ogo-timeline-item-tail) {
+      border-color: #e37318;
+    }
+  }
+}
+
+.flow {
+  margin-top: 16px;
+  background-color: #fff;
+  height: calc(100% - 100px);
+  overflow-y: auto;
+  .flowTitle {
+    font-size: 18px;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.9);
+    margin-bottom: 28px;
+  }
+}
+.approver {
+  display: flex;
+  align-items: center;
+  .approverList {
+    display: flex;
+    align-items: center;
+    padding-left: 10px;
+    padding-top: 5px;
+  }
+}
+.approverInfo {
+  padding: 6px 0px;
+  padding-left: 3px;
+  .approval {
+    & > div {
+      display: flex;
+      align-items: center;
+      padding: 0px 3px;
+      border-radius: 3px;
+    }
+    .statusReview {
+      color: #0052d9;
+      background-color: #d9e1ff;
+    }
+    .statusSuccess {
+      color: #32bd41;
+      background-color: rgba(46, 202, 181, 0.1);
+    }
+    .statusRefuse {
+      color: #e37318;
+      background-color: #fff1e9;
+    }
+  }
+  .approverHeader {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    .approverLeft {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      .approveType {
+        font-size: 14px;
+        color: #15181d;
+        font-weight: 500;
+      }
+      .destName {
+        color: #6f7686;
+      }
+    }
+    .approverTime {
+      color: rgba(33, 35, 40, 0.4);
+    }
+  }
+  .comment {
+    width: 100%;
+    padding: 5px 0px;
+    color: rgba(25, 31, 37, 0.68);
+    background-color: #f2f2f2;
+    padding-left: 14px;
+    border-radius: 3px;
+  }
+  .sendInfo {
+    height: 36px;
+    line-height: 36px;
+    color: rgb(244, 63, 63);
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .information {
+    display: flex;
+    align-items: center;
+  }
 }

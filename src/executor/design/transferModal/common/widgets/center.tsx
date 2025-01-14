@@ -152,21 +152,15 @@ export const Center: React.FC<IProps> = ({ current }) => {
                             (item: string) => current.forms[item],
                           );
                           const sheets = current.template<schema.XThing>(forms);
-                          const excel = await readXlsx(
-                            res.data as Blob,
-                            new Excel(
-                              sheets.map((sheet) => {
-                                return new AnyHandler(
-                                  new AnySheet(
-                                    sheet.id,
-                                    sheet.name,
-                                    sheet.columns,
-                                    current.directory,
-                                  ),
-                                );
-                              }),
-                            ),
+                          const excel = new Excel(
+                            current.directory.target.space,
+                            sheets.map((sheet) => {
+                              return new AnyHandler(
+                                new AnySheet(sheet.id, sheet.name, sheet.columns),
+                              );
+                            }),
                           );
+                          await readXlsx(res.data as Blob, excel);
                           const map: { [key: string]: schema.XThing[] } = {};
                           excel.handlers.forEach(
                             (item) => (map[item.sheet.id] = item.sheet.data),

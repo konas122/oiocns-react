@@ -1,0 +1,80 @@
+.examine {
+  display: flex;
+  align-items: flex-end;
+  border: 1px solid #e7e8eb;
+  padding: 9px 12px 6px;
+  border-radius: 5px;
+  margin-top: 24px;
+  .examineContent {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    .examineInput {
+      flex: 1;
+      input::-webkit-input-placeholder {
+        color: #d4d4d4;
+      }
+    }
+  }
+}
+.dropdownContent {
+  width: 400px;
+  min-height: 240px;
+  height: 240px;
+  font-size: 14px;
+  background-color: #fff;
+  overflow: auto;
+  font-weight: 500;
+  box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 6px 16px 0 rgba(0, 0, 0, 0.08),
+    0 9px 28px 8px rgba(0, 0, 0, 0.05);
+  .commonLanguageHeader {
+    height: 29px;
+    margin: 16px 16px;
+    display: flex;
+    font-size: 15px;
+    justify-content: space-between;
+    border-bottom: 1px solid #e7e8eb;
+    :nth-child(2) {
+      color: #366ef4;
+      cursor: pointer;
+    }
+  }
+  .commonLanguageItem {
+    height: 44px;
+    padding: 10px 16px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    cursor: pointer;
+    &:hover {
+      background-color: #f7f8fa;
+    }
+    .text {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+  .noCommonLanguage {
+    display: flex;
+    height: calc(100% - 29px);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    img {
+      width: 80px;
+    }
+  }
+}
+.modalComment {
+  padding: 12px 0px 12px 12px;
+  margin: 16px 0px;
+  border-radius: 8px;
+  background-color: rgba(247, 248, 250, 1);
+  font-size: 12px;
+  .modalCommentTitle {
+    font-weight: 500;
+    font-size: 14px;
+  }
+}

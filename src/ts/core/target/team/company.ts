@@ -13,6 +13,8 @@ import { Storage } from '../outTeam/storage';
 import { Cohort } from '../outTeam/cohort';
 import { ISession } from '../../chat/session';
 import { IFile } from '../../thing/fileinfo';
+import { IActivity } from '../../chat/activity';
+import { IReception } from '@/ts/core/work/assign/reception';
 
 /** 单位类型接口 */
 export interface ICompany extends IBelong {
@@ -22,18 +24,29 @@ export interface ICompany extends IBelong {
   stations: IStation[];
   /** 设立的部门 */
   departments: IDepartment[];
+  /** 集群任务 */
+  groupTask: IReception[];
+
   /** 退出单位 */
   exit(): Promise<boolean>;
+
   /** 加载组织集群 */
   loadGroups(reload?: boolean): Promise<IGroup[]>;
+
   /** 加载单位的部门 */
   loadDepartments(reload?: boolean): Promise<IDepartment[]>;
+
   /** 设立岗位 */
   createStation(data: model.TargetModel): Promise<IStation | undefined>;
+
   /** 设立组织集群 */
   createGroup(data: model.TargetModel): Promise<IGroup | undefined>;
+
   /** 设立内部机构 */
   createDepartment(data: model.TargetModel): Promise<IDepartment | undefined>;
+
+  /** 加载接收任务 */
+  loadPublicTasks(reload?: boolean): Promise<IReception[]>;
 }
 
 /** 单位类型实现 */
@@ -41,11 +54,14 @@ export class Company extends Belong implements ICompany {
   constructor(_metadata: schema.XTarget, _user: IPerson) {
     super(_metadata, [_metadata.id], _user);
   }
+
   groups: IGroup[] = [];
   stations: IStation[] = [];
   departments: IDepartment[] = [];
+  groupTask: IReception[] = [];
   private _groupLoaded: boolean = false;
   private _departmentLoaded: boolean = false;
+
   async loadGroups(reload: boolean = false): Promise<IGroup[]> {
     if (!this._groupLoaded || reload) {
       const res = await kernel.queryJoinedTargetById({
@@ -57,19 +73,21 @@ export class Company extends Belong implements ICompany {
         this._groupLoaded = true;
         this.storages = [];
         this.groups = [];
-        (res.data.result || []).forEach((i) => {
-          switch (i.typeName) {
+        for (const mdata of res.data.result || []) {
+          switch (mdata.typeName) {
             case TargetType.Storage:
-              this.storages.push(new Storage(i, [this.id], this));
+              this.storages.push(new Storage(mdata, [this.id], this));
               break;
             default:
-              this.groups.push(new Group([this.key], i, [this.id], this));
+              this.groups.push(new Group([this.key], mdata, [this.id], this));
+              break;
           }
-        });
+        }
       }
     }
     return this.groups;
   }
+
   async loadDepartments(reload?: boolean | undefined): Promise<IDepartment[]> {
     if (!this._departmentLoaded || reload) {
       const res = await kernel.querySubTargetById({
@@ -98,6 +116,7 @@ export class Company extends Belong implements ICompany {
     }
     return this.departments;
   }
+
   async createGroup(data: model.TargetModel): Promise<IGroup | undefined> {
     data.typeName = TargetType.Group;
     const metadata = await this.create(data);
@@ -109,6 +128,7 @@ export class Company extends Belong implements ICompany {
       return group;
     }
   }
+
   async createDepartment(data: model.TargetModel): Promise<IDepartment | undefined> {
     if (!departmentTypes.includes(data.typeName as TargetType)) {
       data.typeName = TargetType.Department;
@@ -124,6 +144,7 @@ export class Company extends Belong implements ICompany {
       }
     }
   }
+
   async createStation(data: model.TargetModel): Promise<IStation | undefined> {
     data.public = false;
     data.typeName = TargetType.Station;
@@ -136,6 +157,7 @@ export class Company extends Belong implements ICompany {
       }
     }
   }
+
   async createTarget(data: model.TargetModel): Promise<ITeam | undefined> {
     switch (data.typeName) {
       case TargetType.Cohort:
@@ -148,6 +170,7 @@ export class Company extends Belong implements ICompany {
         return this.createDepartment(data);
     }
   }
+
   async applyJoin(members: schema.XTarget[]): Promise<boolean> {
     for (const member of members) {
       if (
@@ -159,9 +182,16 @@ export class Company extends Belong implements ICompany {
           subId: this.id,
         });
       }
+      if (departmentTypes.includes(member.typeName as TargetType)) {
+        await kernel.applyJoinTeam({
+          id: member.id,
+          subId: this.user.id,
+        });
+      }
     }
     return true;
   }
+
   async exit(): Promise<boolean> {
     if (await this.removeMembers([this.user.metadata])) {
       this.user.companys = this.user.companys.filter((i) => i.key != this.key);
@@ -170,6 +200,7 @@ export class Company extends Belong implements ICompany {
     }
     return false;
   }
+
   override async delete(notity: boolean = false): Promise<boolean> {
     const success = await super.delete(notity);
     if (success) {
@@ -178,31 +209,45 @@ export class Company extends Belong implements ICompany {
     }
     return success;
   }
+
   get subTarget(): ITarget[] {
     return [...this.departments, ...this.cohorts];
   }
+
   get shareTarget(): ITarget[] {
-    return [this, ...this.groups];
+    return [this, ...this.groups, ...this.storages];
   }
+
   get parentTarget(): ITarget[] {
     return this.groups;
   }
+
   get chats(): ISession[] {
     const chats: ISession[] = [this.session];
-    chats.push(...this.cohortChats);
-    chats.push(...this.memberChats);
-    return chats;
-  }
-  get cohortChats(): ISession[] {
-    const chats: ISession[] = [];
     for (const item of this.departments) {
       chats.push(...item.chats);
     }
     for (const item of this.cohorts) {
       chats.push(...item.chats);
     }
+    chats.push(...this.memberChats);
     return chats;
   }
+
+  get activitys(): IActivity[] {
+    const activitys: IActivity[] = [this.session.activity];
+    for (const item of this.cohorts) {
+      activitys.push(item.session.activity);
+    }
+    for (const item of this.departments) {
+      activitys.push(...item.chats.map((i) => i.activity));
+    }
+    for (const item of this.groups) {
+      activitys.push(...item.chats.map((i) => i.activity));
+    }
+    return activitys;
+  }
+
   get targets(): ITarget[] {
     const targets: ITarget[] = [this];
     for (const item of this.groups) {
@@ -219,21 +264,28 @@ export class Company extends Belong implements ICompany {
     }
     return targets;
   }
+
   async deepLoad(reload: boolean = false): Promise<void> {
+    await this.cacheObj.all();
+    await this._loadCommons();
     await Promise.all([
-      this.loadGroups(reload),
-      this.loadDepartments(reload),
-      this.loadMembers(reload),
       this.loadSuperAuth(reload),
       this.loadIdentitys(reload),
+      this.loadGroups(reload),
+      this.loadDepartments(reload),
     ]);
-    await Promise.all(this.groups.map((group) => group.deepLoad(reload)));
-    await Promise.all(this.departments.map((department) => department.deepLoad(reload)));
-    await Promise.all(this.stations.map((station) => station.deepLoad(reload)));
-    await Promise.all(this.cohorts.map((cohort) => cohort.deepLoad(reload)));
-    await Promise.all(this.storages.map((storage) => storage.deepLoad(reload)));
-    this.superAuth?.deepLoad(reload);
-    this.directory.loadDirectoryResource(reload);
+    await this.directory.loadDirectoryResource(reload);
+    setTimeout(async () => {
+      await Promise.all(
+        this.departments.map((department) => department.deepLoad(reload)),
+      );
+      await Promise.all(this.cohorts.map((cohort) => cohort.deepLoad(reload)));
+      await this.manager.loadSubscriptions();
+      await Promise.all(this.groups.map((group) => group.deepLoad(reload)));
+      await Promise.all(this.storages.map((storage) => storage.deepLoad(reload)));
+      await Promise.all(this.stations.map((station) => station.deepLoad(reload)));
+      await this.superAuth?.deepLoad(reload);
+    }, 1000);
   }
 
   override operates(): model.OperateModel[] {
@@ -330,5 +382,30 @@ export class Company extends Belong implements ICompany {
         break;
     }
     return '';
+  }
+
+  async loadPublicTasks(reload?: boolean): Promise<IReception[]> {
+    if (reload || !this._taskLoaded) {
+      this._taskLoaded = true;
+      const GroupTasks: IReception[] = [];
+      const taskPromises = this.groups.map((group) => {
+        return group.resource.publicTaskReceptionColl.loadSpace({
+          options: {
+            match: {
+              isDeleted: false,
+              receiveUserId: this.userId,
+              'content.treeNode.belongId': this.id,
+              sessionId: group.id,
+            },
+          },
+        });
+      });
+      const taskResults = await Promise.all(taskPromises);
+      taskResults.forEach((res) => {
+        GroupTasks.push(...this.convert(res));
+      });
+      this.groupTask = GroupTasks;
+    }
+    return this.groupTask;
   }
 }

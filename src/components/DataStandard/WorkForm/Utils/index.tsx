@@ -6,11 +6,12 @@ export const getWidget = (valueType?: string, widget?: string) => {
   } else {
     switch (valueType) {
       case '数值型':
+      case '货币型':
         return '数字框';
       case '描述型':
         return '文本框';
       case '选择型':
-        return '选择框';
+        return '单选框';
       case '分类型':
         return '多级选择框';
       case '日期型':
@@ -21,6 +22,8 @@ export const getWidget = (valueType?: string, widget?: string) => {
         return '人员搜索框';
       case '附件型':
         return '文件选择框';
+      case '地图型':
+        return '地图选择框';
       default:
         return '文本框';
     }
@@ -30,11 +33,12 @@ export const getWidget = (valueType?: string, widget?: string) => {
 export const loadwidgetOptions = (attribute: schema.XAttribute) => {
   switch (attribute.property?.valueType) {
     case '数值型':
+    case '货币型':
       return ['数字框'];
     case '描述型':
-      return ['文本框', '多行文本框', '富文本框'];
+      return ['文本框', '多行文本框', '富文本框', '超链接框'];
     case '选择型':
-      return ['选择框'];
+      return ['单选框', '多选框'];
     case '分类型':
       return ['多级选择框'];
     case '日期型':
@@ -56,6 +60,10 @@ export const loadwidgetOptions = (attribute: schema.XAttribute) => {
       return ['文件选择框'];
     case '引用型':
       return ['文本框', '引用选择框'];
+    case '报表型':
+      return ['文本框', '数字框'];
+    case '地图型':
+      return ['地图选择框'];
     default:
       return ['文本框'];
   }
@@ -87,3 +95,36 @@ export const getItemWidth = (numStr: string) => {
       return 300;
   }
 };
+
+/**
+ * 判断特性是否是可以直接编辑（基元类型）
+ */
+export function isDirectEditable(attr: schema.XAttribute) {
+  const valueType = attr.property?.valueType || '描述型';
+  if (['货币型', '数值型', '描述型', '日期型', '时间型'].includes(valueType)) {
+    return true;
+  } else if (valueType == '报表型') {
+    return attr.widget == '文本框' || attr.widget == '数字框';
+  }
+  return false;
+}
+
+/**
+ * 判断单元格是否是可以直接编辑（基元类型）
+ */
+export function isDirectEditCell(cell: schema.XCells) {
+  if (cell.rule.value?.type === '属性型') {
+    const valueType = cell.rule.value?.valueString?.property?.valueType || '描述型';
+    if (['货币型', '数值型', '描述型', '日期型', '时间型'].includes(valueType)) {
+      return true;
+    }
+  } else {
+    return (
+      cell.valueType == '文本框' ||
+      cell.valueType == '数字框' ||
+      cell.valueType == '日期型'
+    );
+  }
+
+  return false;
+}

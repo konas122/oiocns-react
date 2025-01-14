@@ -1,10 +1,16 @@
 import React from 'react';
 import { RouteConfig } from 'react-router-config';
 import type { Properties, PropertiesHyphen } from 'csstype';
+import { Field } from 'devextreme/ui/filter_builder';
 
 interface DataType {
   [key: string]: any;
 }
+
+type FieldInfo  = {
+ id: string;
+ fieldType?:string
+} & Field
 
 type PageShowType = 'table' | 'card'; //数据页面展示形式 表格 / 卡片
 

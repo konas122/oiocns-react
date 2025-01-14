@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import pako from 'pako';
 const sizeUnits = ['', 'KB', 'MB', 'GB', 'TB', 'PB'];
 /**
@@ -133,7 +134,11 @@ export class StringPako {
     if (this.arrayStartwith(buffer, StringPako.gzheader)) {
       return pako.ungzip(buffer.subarray(gzhlen), { to: 'string' });
     }
-    return new TextDecoder().decode(buffer);
+    const result = new TextDecoder().decode(buffer);
+    if (result.includes('"_id":')) {
+      return result.replace(/"_id":/gm, '"id":');
+    }
+    return result;
   }
   /**
    * 解压缩
@@ -217,3 +222,16 @@ export class StringPako {
     return str;
   }
 }
+
+export const getAsyncTime = (val: string) => {
+  switch (val) {
+    case '年月日':
+      return dayjs().format('YYYYMMDD');
+    case '年月':
+      return dayjs().format('YYYYMM');
+    case '年':
+      return dayjs().format('YYYY');
+    default:
+      break;
+  }
+};

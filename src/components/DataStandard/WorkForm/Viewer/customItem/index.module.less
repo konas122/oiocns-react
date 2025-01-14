@@ -1,23 +1,56 @@
-.imageUploader {
-  display: flex;
-  gap: 8px;
-  padding: 30px;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-start;
-  &:hover {
+.selectFilesCard {
+  width: 100%;
+  border: 1px solid #dcdcdc;
+  border-radius: 4px;
+  padding: 10px 8px;
+  color: rgba(0, 0, 0, 0.4);
+  .imageUploader {
+    display: flex;
+    gap: 8px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    &:hover {
+      .label {
+        color: #2d6da3;
+      }
+    }
     .label {
-      color: #2d6da3;
+      color: #888;
+    }
+    .download {
+      color: rgb(170, 187, 204);
+      position: relative;
+      top: -20px;
+      left: 10px;
+      z-index: 11;
+    }
+    .fileItem {
+      cursor: pointer;
+      text-align: center;
+      color: blue;
+      padding: 10px;
+    }
+    // 开启SelectFilesItem组件外层TextArea的高度自适应后，需要如下样式隐藏自带的字符输入区域
+    & + div {
+      padding-top: 0 !important;
+      & textarea {
+        height: 0;
+        min-height: 0;
+        padding: 0;
+      }
     }
   }
-  .label {
-    color: #888;
+  .selectFilesName {
+    padding-bottom: 16px;
+    font-size: 14px;
   }
-  .fileItem {
-    cursor: pointer;
-    text-align: center;
-    color: blue;
-    padding: 10px;
+  .upload {
+    margin-left: -6px;
+  }
+  .file {
+    display: flex;
+    justify-content: space-between;
   }
 }

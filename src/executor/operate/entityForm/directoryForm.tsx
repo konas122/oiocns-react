@@ -1,10 +1,11 @@
-import React from 'react';
-import { ProFormColumnsType } from '@ant-design/pro-components';
+import React, { useRef } from 'react';
+import { ProFormColumnsType, ProFormInstance } from '@ant-design/pro-components';
 import SchemaForm from '@/components/SchemaForm';
 import { IDirectory } from '@/ts/core';
 import UploadItem from '../../tools/uploadItem';
 import { EntityColumns } from './entityColumns';
 import { schema } from '@/ts/base';
+import { generateCodeByInitials } from '@/utils/tools';
 
 interface Iprops {
   formType: string;
@@ -18,6 +19,7 @@ const DirectoryForm = (props: Iprops) => {
   let title = '';
   const readonly = props.formType === 'remarkDir';
   let initialValue: any = props.current.metadata;
+  const formRef = useRef<ProFormInstance>();
   switch (props.formType) {
     case 'newDir':
       title = '新建目录';
@@ -99,6 +101,7 @@ const DirectoryForm = (props: Iprops) => {
   });
   return (
     <SchemaForm<schema.XDirectory>
+      formRef={formRef}
       open
       title={title}
       width={640}
@@ -111,6 +114,11 @@ const DirectoryForm = (props: Iprops) => {
       onOpenChange={(open: boolean) => {
         if (!open) {
           props.finished();
+        }
+      }}
+      onValuesChange={async (values: any) => {
+        if (Object.keys(values)[0] === 'name') {
+          formRef.current?.setFieldValue('code', generateCodeByInitials(values['name']));
         }
       }}
       onFinish={async (values) => {

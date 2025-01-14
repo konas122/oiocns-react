@@ -16,7 +16,6 @@ const buildSpeciesFiledsTree = (fields: model.FieldModel[]): MenuItemType[] => {
       menus: [],
       icon: (
         <EntityIcon
-          notAvatar={true}
           entity={
             {
               id: filed.id,
@@ -50,7 +49,6 @@ const buildSpeciesItemsTree = (
         menus: [],
         icon: (
           <EntityIcon
-            notAvatar={true}
             entity={
               {
                 id: item.id,
@@ -76,6 +74,6 @@ export const loadSpeciesItemMenu = (form: IForm): MenuItemType => {
     label: form.name,
     itemType: 'Tab',
     children: buildSpeciesFiledsTree(SpeciesFields),
-    icon: <EntityIcon notAvatar={true} entityId={form.id} size={18} />,
+    icon: <EntityIcon entityId={form.id} size={18} />,
   };
 };

@@ -1,10 +1,10 @@
 import React from 'react';
 import { ProFormColumnsType } from '@ant-design/pro-components';
 
-import CodeEdit from '@/components/Common/ReactCodeEdit';
 import { XAttribute, XFormRule } from '@/ts/base/schema';
 import { Input } from 'antd';
 import { EffectEnum } from '@/ts/core/work/rules/base/enum';
+import { MonacoEditor } from '@/components/Common/MonacoEditor';
 
 /** 规则运行类型 */
 export const trigger: { [key: string]: string } = {
@@ -22,6 +22,7 @@ const GoalsOpt = Object.keys(EffectEnum).map((v) => {
   return { label: v, value: EffectEnum?.[v] };
 });
 
+/** @deprecated 旧版规则 */
 const getColumns: (
   attrs: XAttribute[],
   sysRules?: any[],
@@ -159,9 +160,10 @@ const getColumns: (
                       colProps: { span: 24 },
                       renderFormItem: (_schema, _config, _form) => {
                         return (
-                          <CodeEdit
-                            defaultVal={_config as any}
-                            onCodeChange={(code: string) =>
+                          <MonacoEditor
+                            value={_form.getFieldValue('content')}
+                            language="javascript"
+                            onChange={(code: string) =>
                               _form.setFieldValue('content', code)
                             }
                           />

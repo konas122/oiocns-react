@@ -36,6 +36,11 @@ export const enum Constants {
    */
   MAX_UINT_32 = 4294967295, // 2^32 - 1
 
+  /**
+   * Max signed integer that fits on 32 bits.
+   */
+  MAX_INT_32 = 2147483647,
+
   UNICODE_SUPPLEMENTARY_PLANE_BEGIN = 0x010000,
 }
 

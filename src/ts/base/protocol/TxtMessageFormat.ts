@@ -1,12 +1,10 @@
 import { StringPako } from '../common';
 /** @private */
 export class TxtMessageFormat {
-  public static RecordSeparatorCode = 0x1e;
-  public static RecordSeparator = String.fromCharCode(
-    TxtMessageFormat.RecordSeparatorCode,
-  );
+  public RecordSeparatorCode = 0x1e;
+  public RecordSeparator = String.fromCharCode(this.RecordSeparatorCode);
 
-  public static write(out: string): ArrayBuffer {
+  public write(out: string): ArrayBuffer {
     const output = StringPako.gzip(out);
     let size = output.byteLength || output.length;
     const lenBuffer: any = [];
@@ -18,21 +16,16 @@ export class TxtMessageFormat {
       }
       lenBuffer.push(sizePart);
     } while (size > 0);
-
-    size = output.byteLength || output.length;
-
-    const buffer = new Uint8Array(lenBuffer.length + size);
+    const buffer = new Uint8Array(lenBuffer.length + (output.byteLength || output.length));
     buffer.set(lenBuffer, 0);
     buffer.set(
-      output.map((item) => {
-        return 0xff - item;
-      }),
+      output.map((item) => 0xff - item),
       lenBuffer.length,
     );
     return buffer.buffer;
   }
 
-  public static parse(input: ArrayBuffer): string[] {
+  public parse(input: ArrayBuffer): string[] {
     const result: string[] = [];
     const uint8Array = new Uint8Array(input);
     const maxLengthPrefixSize = 5;
@@ -64,20 +57,12 @@ export class TxtMessageFormat {
         let buffer = uint8Array.slice
           ? uint8Array.slice(offset + numBytes, offset + numBytes + size)
           : uint8Array.subarray(offset + numBytes, offset + numBytes + size);
-        result.push(
-          StringPako.ungzip(
-            buffer.map((item) => {
-              return 0xff - item;
-            }),
-          ).replace(/"_id":/gm, '"id":'),
-        );
+        result.push(StringPako.ungzip(buffer.map((item) => 0xff - item)));
       } else {
         throw new Error('Incomplete message.');
       }
-
       offset = offset + numBytes + size;
     }
-
     return result;
   }
 }

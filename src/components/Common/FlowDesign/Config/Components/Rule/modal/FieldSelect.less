@@ -1,0 +1,46 @@
+.field-select {
+  display: flex;
+  align-items: center;
+  .select-text {
+    flex: auto;
+    min-width: 200px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  
+}
+
+.field-select__modal {
+
+  .ogo-form-item:last-child {
+    margin-bottom: 0;
+  }
+  
+  .list-wrapper {
+    height: 45vh;
+    overflow: auto;
+  }
+  .field-item {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    gap: 8px;
+    &.is-selected {
+      background-color: #f6ffed;
+      border-color: #52c41a;
+    }
+    &.is-disabled {
+      cursor: not-allowed;
+      background-color: rgba(0, 0, 0, 0.04);
+    }
+
+    .item-name {
+      display: block;
+      min-width: 120px;
+    }
+    .item-code {
+      font-size: 12px;
+    }
+  }
+}

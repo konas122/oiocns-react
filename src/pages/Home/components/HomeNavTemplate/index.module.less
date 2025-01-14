@@ -1,0 +1,40 @@
+:global {
+  .ogo-tabs-nav-wrap {
+    padding: 0px !important;
+  }
+  .ogo-tabs-content-holder {
+    width: 100%;
+    height: calc(100% - 46px);
+    overflow-y: scroll;
+  }
+  .ogo-tabs-tab-active {
+    color: #366ef4;
+  }
+}
+.homeNavTemplate {
+  height: 100%;
+  width: 100%;
+  border-radius: 10px;
+  padding-top: 12px;
+  padding-left: 20px;
+  background-color: #f7f8fa;
+  position: relative;
+  .homeNavTag {
+    width: calc(100% - 100px);
+    height: 32px;
+    margin-bottom: 12px;
+    line-height: 32px;
+    overflow-x: auto;
+    cursor: pointer;
+  }
+  .newHomeNav {
+    position: absolute;
+    top: 0px;
+    right: 20px;
+  }
+  background-color: #f7f8fa;
+  :global(.ogo-tag) {
+    font-size: 14px;
+    padding: 2px 15px;
+  }
+}

@@ -41,15 +41,16 @@ export class DirectoryHandler extends i.SheetHandler<DirectorySheet> {
       allErrors.push(...errors);
     });
     if (allErrors.length == 0) {
-      const tree = new i.Tree(
+      const tree = new t.Tree(
         this.sheet.data,
         (node) => node.code,
         (node) => node.directoryCode,
       );
       tree.freeMap.forEach((item) => {
         const parentCode = item.data.directoryCode;
+        const index = tree.indexMap.get(item.id) ?? -1;
         allErrors.push(
-          ...this.assert(item.index, [
+          ...this.assert(index, [
             { res: tree.freeMap.size != 0, error: '未找到上级目录代码：' + parentCode },
           ]),
         );
@@ -65,14 +66,14 @@ export class DirectoryHandler extends i.SheetHandler<DirectorySheet> {
     excel: t.IExcel,
     onItemCompleted: (count?: number) => void,
   ): Promise<void> {
-    const nTree = new i.Tree<t.DirData>(
+    const nTree = new t.Tree<t.DirData>(
       this.sheet.data.map((item) => {
         return { meta: item, forms: {} };
       }),
       (n) => n.meta.code,
       (n) => n.meta.directoryCode,
     );
-    const oTree = new i.Tree(
+    const oTree = new t.Tree(
       Object.entries(excel.context.directories).map((item) => item[1]),
       (n) => n.meta.id.replace('_', ''),
       (n) => n.meta.directoryId,
@@ -90,15 +91,15 @@ export class DirectoryHandler extends i.SheetHandler<DirectorySheet> {
   async recursion(
     excel: t.IExcel,
     parent: t.schema.XDirectory,
-    target: i.Node<t.DirData>,
-    source: i.Node<t.DirData>,
+    target: t.Node<t.DirData>,
+    source: t.Node<t.DirData>,
     onItemCompleted: (count?: number) => void,
   ) {
     const parentId = parent.id.replace('_', '');
     for (const first of target.children) {
       first.data.meta.typeName = '目录';
       first.data.meta.directoryId = parentId;
-      let find = (item: i.Node<t.DirData>) => item.data.meta.code == first.data.meta.code;
+      let find = (item: t.Node<t.DirData>) => item.data.meta.code == first.data.meta.code;
       let second = source.children.find(find);
       if (second) {
         Object.assign(second.data.meta, first.data.meta);

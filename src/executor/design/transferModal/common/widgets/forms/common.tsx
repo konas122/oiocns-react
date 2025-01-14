@@ -1,6 +1,5 @@
+import { MonacoEditor } from '@/components/Common/MonacoEditor';
 import { ProFormColumnsType } from '@ant-design/pro-components';
-import { javascript } from '@codemirror/lang-javascript';
-import CodeMirror from '@uiw/react-codemirror';
 import React from 'react';
 
 export const NameColumn: ProFormColumnsType<any> = {
@@ -27,10 +26,9 @@ export const PreScriptColumn: ProFormColumnsType<any> = {
   colProps: { span: 24 },
   renderFormItem: (_, __, form) => {
     return (
-      <CodeMirror
+      <MonacoEditor
         value={form.getFieldValue('preScript')}
-        height={'100px'}
-        extensions={[javascript()]}
+        language="javascript"
         onChange={(code: string) => {
           form.setFieldValue('preScript', code);
         }}
@@ -45,10 +43,9 @@ export const PostScriptColumn: ProFormColumnsType<any> = {
   colProps: { span: 24 },
   renderFormItem: (_, __, form) => {
     return (
-      <CodeMirror
+      <MonacoEditor
         value={form.getFieldValue('postScript')}
-        height={'100px'}
-        extensions={[javascript()]}
+        language="javascript"
         onChange={(code: string) => {
           form.setFieldValue('postScript', code);
         }}

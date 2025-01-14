@@ -3,19 +3,22 @@ import { kernel, schema } from '../../base';
 
 /** 对象工具类 */
 export class XObject<T extends schema.Xbase> {
-  private _loaded: boolean;
   private _cache: T | undefined;
   private _objName: string;
   private _target: schema.XTarget;
   private _relations: string[];
+  private _loaded: boolean = false;
   private _methods: { [name: string]: ((...args: any[]) => void)[] };
   constructor(target: schema.XTarget, name: string, relations: string[], keys: string[]) {
-    this._loaded = false;
     this._target = target;
     this._relations = relations;
     this._objName = name;
     this._methods = {};
     kernel.subscribe(this.subMethodName, keys, (res) => this._objectCallback(res));
+  }
+
+  get loaded(): boolean {
+    return this._loaded;
   }
 
   get cache(): any {
@@ -34,16 +37,17 @@ export class XObject<T extends schema.Xbase> {
     return this.objName + (path ? '.' + path : '');
   }
 
-  async all(): Promise<any> {
-    if (!this._loaded) {
+  async all(flag?: boolean): Promise<any> {
+    if (!this._loaded || flag) {
+      this._loaded = true;
       const res = await kernel.objectGet<T>(
+        this._target.id,
         this._target.belongId,
         this._relations,
         this.objName,
       );
       if (res.success) {
         this._cache = res.data;
-        this._loaded = true;
       }
     }
     return this._cache;
@@ -58,6 +62,7 @@ export class XObject<T extends schema.Xbase> {
 
   async set(path: string, data: any): Promise<boolean> {
     const res = await kernel.objectSet(
+      this._target.id,
       this._target.belongId,
       this._relations,
       this.fullPath(path),
@@ -77,6 +82,7 @@ export class XObject<T extends schema.Xbase> {
 
   async delete(path: string): Promise<boolean> {
     const res = await kernel.objectDelete(
+      this._target.id,
       this._target.belongId,
       this._relations,
       this.fullPath(path),
@@ -91,6 +97,7 @@ export class XObject<T extends schema.Xbase> {
     ignoreSelf?: boolean,
     targetId?: string,
     onlineOnly: boolean = true,
+    targetType?: string,
   ): Promise<boolean> {
     const res = await kernel.dataNotify({
       data: {
@@ -104,6 +111,7 @@ export class XObject<T extends schema.Xbase> {
       onlyTarget: onlyTarget === true,
       ignoreSelf: ignoreSelf === true,
       targetId: targetId ?? this._target.id,
+      targetType: targetType ?? 'target',
     });
     return res.success;
   }

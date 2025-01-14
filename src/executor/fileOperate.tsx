@@ -28,6 +28,16 @@ export const operatesToMenus = (operates: OperateModel[], file: IDEntity) => {
     const toName = 'filedata' in file ? '文件' : file.typeName;
     return label.replace('{0}', toName);
   };
+  const loadIcon = (o: OperateModel) => {
+    if (o.menus && o.menus.length > 0) {
+      return <></>;
+    }
+    return (
+      <div style={{ display: 'inline-block' }}>
+        <TypeIcon iconType={o.iconType} size={20} />
+      </div>
+    );
+  };
   if (operates.length > 0) {
     return operates
       .sort((a, b) => a.sort - b.sort)
@@ -36,7 +46,7 @@ export const operatesToMenus = (operates: OperateModel[], file: IDEntity) => {
           key: o.cmd,
           label: parseLabel(o.label),
           model: o.model ?? 'inside',
-          icon: o.menus ? <></> : <TypeIcon iconType={o.iconType} size={18} />,
+          icon: loadIcon(o),
           beforeLoad: async () => {
             command.emitter('executor', o.cmd, file);
             return true;
@@ -47,7 +57,7 @@ export const operatesToMenus = (operates: OperateModel[], file: IDEntity) => {
               return {
                 key: s.cmd,
                 label: parseLabel(s.label),
-                icon: <TypeIcon iconType={s.iconType} size={18} />,
+                icon: loadIcon(s),
                 beforeLoad: async () => {
                   command.emitter('executor', s.cmd, file);
                   return true;

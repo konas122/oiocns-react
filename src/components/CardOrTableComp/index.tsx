@@ -22,7 +22,7 @@ interface PageType<T> {
   onRow?: (record: T) => any;
   onChange?: (page: number, pageSize: number) => void; // 弹出切换页码事件
   operation?: (item: T) => any[]; //操作区域数据
-  showBtnType?: string, // 表格操作按钮展示方式；unfold: 展开; fold: 折叠
+  showBtnType?: string; // 表格操作按钮展示方式；unfold: 展开; fold: 折叠
 
   renderCardContent?: (
     dataArr: T[], //渲染卡片样式 Data保持与dataSource 类型一致;或者直接传进展示组件
@@ -87,15 +87,18 @@ const Index: <T extends unknown>(props: PageType<T>) => React.ReactElement = ({
         render: (_text, record) => {
           const items = operation(record);
           return items && items.length > 0 ? (
-            showBtnType == 'unfold' ? [...items] : 
-            [
-              <Dropdown
-                className={cls['operation-btn']}
-                menu={{ items: items }}
-                key="key">
-                <RiMoreFill />
-              </Dropdown>,
-            ]
+            showBtnType == 'unfold' ? (
+              [...items]
+            ) : (
+              [
+                <Dropdown
+                  className={cls['operation-btn']}
+                  menu={{ items: items }}
+                  key="key">
+                  <RiMoreFill />
+                </Dropdown>,
+              ]
+            )
           ) : (
             <></>
           );
@@ -122,10 +125,12 @@ const Index: <T extends unknown>(props: PageType<T>) => React.ReactElement = ({
           defaultCurrent: 1,
           onChange: (_) => {},
           showTotal: (total: number) => `共 ${total} 条`,
+          total: dataSource.length,
         }}
         options={false}
         onRow={onRow}
         params={{ filter: '' }}
+        dataSource={dataSource}
         request={async (params) => {
           const {
             current: pageIndex = 1,
@@ -160,7 +165,7 @@ const Index: <T extends unknown>(props: PageType<T>) => React.ReactElement = ({
             };
           }
         }}
-        tableRender={(props: any, defaultDom, { toolbar }) => {
+        tableRender={(props: any, defaultDom, { toolbar}) => {
           return <div>{defaultDom}</div>;
         }}
         rowClassName={

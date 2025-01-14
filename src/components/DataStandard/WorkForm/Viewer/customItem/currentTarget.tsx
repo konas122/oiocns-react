@@ -7,32 +7,31 @@ import { ISelectBoxOptions } from 'devextreme-react/select-box';
 
 interface CurrentTargetItemProps extends ISelectBoxOptions {
   target: schema.XTarget;
-  defaultValue?: string;
+  isCreate?: boolean;
 }
 
 const CurrentTargetItem: React.FC<CurrentTargetItemProps> = (props) => {
-  const [selectTarget, setSelectTarget] = useState<schema.XTarget>();
+  const [selectTarget, setSelectTarget] = useState<schema.XTarget | undefined>(
+    props.target,
+  );
   useEffect(() => {
-    props.onValueChanged?.apply(this, [{ value: selectTarget?.id } as any]);
-  }, [selectTarget]);
-  useEffect(() => {
-    if (props.readOnly) {
-      if (props.defaultValue && props.defaultValue.length > 5) {
-        orgCtrl.user.findEntityAsync(props.defaultValue).then((value) => {
-          setSelectTarget(value as schema.XTarget);
-        });
-      }
-    } else {
-      setSelectTarget(props.target);
+    if (!props.isCreate && !props.value) {
+      setSelectTarget(undefined);
+    } else if (props.value && props.value.length > 5) {
+      orgCtrl.user.findEntityAsync(props.value).then((value) => {
+        setSelectTarget(value as schema.XTarget);
+      });
     }
   }, [props]);
   return (
     <SelectBox
+      key={selectTarget?.id}
       {...props}
       readOnly
       items={selectTarget ? [selectTarget] : []}
       value={selectTarget?.id}
       showClearButton={false}
+      onValueChange={undefined}
       valueExpr={'id'}
       displayExpr={'name'}
       fieldRender={() => {
@@ -46,7 +45,9 @@ const CurrentTargetItem: React.FC<CurrentTargetItemProps> = (props) => {
               paddingTop: 2,
             }}>
             <EntityIcon entity={selectTarget} />
-            <TextBox value={`${selectTarget?.name}(${selectTarget?.code})`} />
+            <TextBox
+              value={selectTarget ? `${selectTarget?.name}(${selectTarget?.code})` : ''}
+            />
           </div>
         );
       }}

@@ -2,12 +2,13 @@ import * as ai from 'react-icons/ai';
 import InsertButton from '../InsertButton';
 import React from 'react';
 import cls from './index.module.less';
-import { AddNodeType } from '@/components/Common/FlowDesign/processType';
+import { AddNodeType } from '@/utils/work';
 
 type NodeProps = {
   onInsertNode: Function;
   onDelNode: Function;
   onSelected: Function;
+  isGroupWork: boolean;
   config: any;
   isEdit: boolean;
 };
@@ -18,21 +19,16 @@ type NodeProps = {
  */
 const Node: React.FC<NodeProps> = (props: NodeProps) => {
   let isRoot = false;
-  let isJGNode = (props.config.code as string).startsWith('JGNODE');
   let placeholder = '';
-  console.log(props);
   switch (props.config.type) {
     case AddNodeType.ROOT:
       isRoot = true;
       break;
     case AddNodeType.APPROVAL:
-      placeholder = '请设置审批对象';
+      placeholder = '请设置审核对象';
       break;
     case AddNodeType.CC:
       placeholder = '请设置抄送对象';
-      break;
-    case AddNodeType.CHILDWORK:
-      placeholder = '请选择其他办事';
       break;
     case AddNodeType.GATEWAY:
       placeholder = '由成员关联办事';
@@ -49,7 +45,11 @@ const Node: React.FC<NodeProps> = (props: NodeProps) => {
         <div className={cls['node-footer']}>
           <div className={cls['btn']}>
             {props.isEdit && (
-              <InsertButton allowBranche onInsertNode={props.onInsertNode} />
+              <InsertButton
+                allowBranche
+                onInsertNode={props.onInsertNode}
+                isGroupWork={props.isGroupWork}
+              />
             )}
           </div>
         </div>
@@ -63,7 +63,9 @@ const Node: React.FC<NodeProps> = (props: NodeProps) => {
         <div className={cls['all-process-end']} onClick={() => props.onSelected()}>
           <div className={cls['process-content']}>
             <div className={cls['process-left']}>发起</div>
-            <div className={cls['process-right']}>流程开始</div>
+            <div className={cls['process-right']}>
+              <div className={cls['name-title']}>办事发起</div>
+            </div>
           </div>
         </div>
       )}
@@ -78,22 +80,20 @@ const Node: React.FC<NodeProps> = (props: NodeProps) => {
             <div
               style={{ display: 'flex' }}
               onClick={() => {
-                if (!isJGNode) {
-                  props.onSelected();
-                }
+                props.onSelected();
               }}
               title="点击配置">
               <div className={cls['node-body-header']}>{props.config.type}</div>
               <div className={cls['node-body-right']}>
                 <div className={cls['name-title']}>{props.config.name}</div>
-                <span className={cls['name-select-title']}>
+                <div className={cls['name-select-title']}>
                   {props.config.destName || (
-                    <span style={{ color: '#999' }}>{placeholder}</span>
+                    <span style={{ color: '#6F7686' }}>{placeholder}</span>
                   )}
-                </span>
+                </div>
               </div>
             </div>
-            {props.isEdit && !isRoot && !isJGNode && (
+            {props.isEdit && !isRoot && (
               <div className={cls.closeBtn}>
                 <ai.AiOutlineClose onClick={() => props.onDelNode()} title="点击删除" />
               </div>
@@ -104,7 +104,11 @@ const Node: React.FC<NodeProps> = (props: NodeProps) => {
       <div className={cls['node-footer']}>
         <div className={cls['btn']}>
           {props.isEdit && (
-            <InsertButton allowBranche onInsertNode={props.onInsertNode} />
+            <InsertButton
+              allowBranche
+              onInsertNode={props.onInsertNode}
+              isGroupWork={props.isGroupWork}
+            />
           )}
         </div>
       </div>

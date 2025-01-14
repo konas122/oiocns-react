@@ -20,7 +20,7 @@ const WorkSelect: React.FC<{ onSelected: (work: IWork) => void }> = ({ onSelecte
         newWorks.push(...(await item.loadAllWorks()));
       }
       setWorks([
-        ...newWorks.filter((i) => !i.cache.tags?.includes('常用') && i.isMyWork),
+        ...newWorks.filter((i) => !i.cache.tags?.includes('常用') && i.isAuth),
       ]);
       setLoaded(true);
     });

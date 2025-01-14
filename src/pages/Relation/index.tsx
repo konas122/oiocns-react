@@ -5,26 +5,53 @@ import orgCtrl from '@/ts/controller';
 import DirectoryViewer from '@/components/Directory/views';
 import { loadFileMenus, operatesToMenus } from '@/executor/fileOperate';
 import { cleanMenus } from '@/utils/tools';
-import useCtrlUpdate from '@/hooks/useCtrlUpdate';
 import useTimeoutHanlder from '@/hooks/useTimeoutHanlder';
 import { Button, Spin } from 'antd';
 import { targetOperates } from '@/ts/core/public';
-import OrgIcons from '@/components/Common/GlobalComps/orgIcons';
 import { ImUndo2 } from 'react-icons/im';
 import EntityIcon from '@/components/Common/GlobalComps/entityIcon';
 import AppLayout from '@/components/MainLayout/appLayout';
+import { useFlagCmdEmitter } from '@/hooks/useCtrlUpdate';
 /** 关系浏览器 */
 const RelationBrowser: React.FC = () => {
   const [current, setCurrent] = useState<ITarget | 'disk'>('disk');
-  const [key] = useCtrlUpdate(current === 'disk' ? orgCtrl.user : current);
   const [currentTag, setCurrentTag] = useState('全部');
   const [focusFile, setFocusFile] = useState<IFile>();
+  const [content, setContent] = useState<IFile[]>([]);
   const [submitHanlder, clearHanlder] = useTimeoutHanlder();
+  const [loaded] = useFlagCmdEmitter('');
   useEffect(() => {
-    command.emitter('preview', 'relation', focusFile);
-  }, [focusFile]);
+    if (loaded) {
+      command.emitter('preview', 'relation', focusFile);
+    }
+  }, [focusFile, loaded]);
+
+  useEffect(() => {
+    command.subscribe((type, cmd) => {
+      if (type == 'setting') {
+        orgCtrl.changCallback();
+        setContent([orgCtrl.user, ...orgCtrl.user.companys]);
+        setFocusFile(orgCtrl.user);
+        command.emitter('preview', 'relation', orgCtrl.user);
+      }
+    });
+  }, []);
+  
+  useEffect(() => {
+    if(content.length > 0) {
+      setFocusFile(content[0]);
+    }
+  }, [content]);
+
   useEffect(() => {
     setCurrentTag('全部');
+    if (current === 'disk') {
+      setContent([orgCtrl.user, ...orgCtrl.user.companys])
+    } else {
+      current.subscribe(() => {
+        setContent(current.content())
+      })
+    }
   }, [current]);
   const contextMenu = (file?: IFile) => {
     const entity = file ?? current;
@@ -52,10 +79,7 @@ const RelationBrowser: React.FC = () => {
   };
 
   const focusHanlder = (file: IFile | undefined) => {
-    const focused = file && focusFile && file.key === focusFile.key;
-    if (focused) {
-      setFocusFile(undefined);
-    } else {
+    if (file && file.key !== focusFile?.key) {
       setFocusFile(file);
     }
   };
@@ -65,59 +89,48 @@ const RelationBrowser: React.FC = () => {
       clearHanlder();
       if (file) {
         setCurrent(file);
-        setFocusFile(undefined);
       }
     } else {
       submitHanlder(() => focusHanlder(file), 300);
     }
   };
 
-  const getContent = () => {
-    const contents: IFile[] = [];
-    if (current === 'disk') {
-      contents.push(orgCtrl.user, ...orgCtrl.user.companys);
-    } else {
-      contents.push(...current.content());
-    }
-    return contents;
-  };
-
   const renderHeader = () => {
     return (
-      <div style={{ marginLeft: 10, padding: 2, fontSize: 16, height: 28 }}>
+      <div style={{ marginLeft: 10, padding: 2, fontSize: 18, height: 28 }}>
         {current != 'disk' && (
           <Button
             type="link"
             title="返回"
             icon={<ImUndo2 />}
-            onClick={() => setCurrent(current.superior as ITarget)}
+            onClick={() => {
+              setFocusFile(current);
+              setCurrent(current.superior as ITarget);
+            }}
           />
         )}
         {current != 'disk' ? (
           <>
-            <EntityIcon entity={current.metadata} notAvatar disInfo size={22} />
+            <EntityIcon entity={current.metadata} disableInfo size={22} />
             <span style={{ paddingLeft: 6 }}>{current.name}</span>
           </>
         ) : (
-          <>
-            <OrgIcons relation />
-            <span style={{ paddingLeft: 6 }}>设置</span>
-          </>
+          <span style={{ paddingLeft: 6 }}>关系</span>
         )}
       </div>
     );
   };
   return (
     <AppLayout previewFlag={'relation'}>
-      <Spin spinning={false} tip={'加载中...'}>
+      <Spin spinning={!loaded} tip={'加载中...'}>
         {renderHeader()}
         <DirectoryViewer
-          key={key}
+          isMenu
           initTags={['全部']}
           selectFiles={[]}
           extraTags={true}
           focusFile={focusFile}
-          content={getContent()}
+          content={content}
           currentTag={currentTag}
           tagChanged={(t) => setCurrentTag(t)}
           fileOpen={(entity, dblclick) => clickHanlder(entity as ITarget, dblclick)}

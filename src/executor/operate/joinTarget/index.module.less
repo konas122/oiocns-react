@@ -1,0 +1,47 @@
+@import (reference) '~antd/es/style/themes/variable';
+
+:global {
+  .ogo-avatar-lg {
+    width: 60px;
+    height: 60px;
+    line-height: 60px;
+    border-radius: 50%;
+  }
+}
+
+.search-card {
+  min-height: 300px;
+  // background-color: @item-hover-bg;
+  padding: 24px;
+  .card {
+    width: 306px;
+    margin-top: 24px;
+    .description {
+      margin-top: @margin-xs;
+    }
+  }
+
+  .company-select-type {
+    border: 1px solid #5ba0e7;
+  }
+
+  .company-no-select-type {
+    border: 1px solid #000;
+  }
+}
+
+.tree-title-wrapper {
+  display: flex;
+
+  .tree-title-icon {
+    margin-top: 2px;
+    margin-right: 5px;
+  }
+}
+.dept-tree{
+  :global{
+    .ogo-tree-node-content-wrapper.ogo-tree-node-selected{
+      background-color: #bdd7ff;
+    }
+  }
+}

@@ -14,7 +14,10 @@ type CompanySearchTableProps = {
   [key: string]: any;
   autoSelect?: boolean;
   searchType: TargetType;
+  searchTypes?: TargetType[];
   searchCallback: (target: XTarget[]) => void;
+  belongId?: string;
+  code?: string;
 };
 
 /*
@@ -23,15 +26,18 @@ type CompanySearchTableProps = {
 const SearchTarget: React.FC<CompanySearchTableProps> = (props) => {
   const tableProps: CompanySearchTableProps = props;
   const [checked, setChecked] = useState<string[]>([]);
-
   const [searchKey, setSearchKey] = useState<string>();
   const [dataSource, setDataSource] = useState<XTarget[]>([]);
   const [searchPlace, setSearchPlace] = useState<string>();
+  const searchTypes = props.searchTypes ?? [props.searchType];
 
   useEffect(() => {
     switch (tableProps.searchType) {
       case TargetType.Person:
         setSearchPlace('请输入用户的账号');
+        break;
+      case TargetType.Storage:
+        setSearchPlace('请输入存储资源代码');
         break;
       case TargetType.Company:
         setSearchPlace('请输入单位的社会统一信用代码');
@@ -42,8 +48,45 @@ const SearchTarget: React.FC<CompanySearchTableProps> = (props) => {
       case TargetType.Cohort:
         setSearchPlace('请输入群组的编码');
         break;
+      case TargetType.Department:
+      case TargetType.College:
+      case TargetType.Office:
+      case TargetType.Section:
+      case TargetType.Major:
+      case TargetType.Working:
+      case TargetType.Research:
+      case TargetType.Laboratory:
+        setSearchKey(props.code);
+        setSearchPlace('请输入部门的编码');
+        break;
+    }
+    if (searchTypes.length > 1) {
+      setSearchPlace('请输入任意代码');
     }
   }, [props]);
+
+  useEffect(() => {
+    if (searchKey) {
+      searchList(searchKey);
+    }
+  }, [searchKey]);
+
+  const searchList = async (searchCode: string) => {
+    if (searchCode) {
+      let res = [];
+      res = await orgCtrl.user.searchTargets(searchCode, searchTypes);
+      if (props.belongId) {
+        res = res.filter((item) => {
+          return item.belongId === props.belongId;
+        });
+      }
+      setDataSource(res);
+      if (props.autoSelect) {
+        setChecked(res.map((i) => i.id));
+        tableProps.searchCallback(res);
+      }
+    }
+  };
 
   // 单位卡片渲染
   const personInfoList = () => {
@@ -70,7 +113,13 @@ const SearchTarget: React.FC<CompanySearchTableProps> = (props) => {
                 bordered
                 style={{ width: '100%' }}
                 className={`${styles.card}`}
-                avatar={<TeamIcon entityId={target.id} size={60} />}
+                avatar={
+                  <TeamIcon
+                    entity={target}
+                    disableInfo={target.typeName === '人员'}
+                    size={60}
+                  />
+                }
                 title={
                   <Space>
                     {target.name}
@@ -101,54 +150,8 @@ const SearchTarget: React.FC<CompanySearchTableProps> = (props) => {
         placeholder={searchPlace}
         onChange={async (event) => {
           setSearchKey(event.target.value);
-          if (event.target.value) {
-            const res: XTarget[] = [];
-            switch (tableProps.searchType) {
-              case TargetType.Person:
-                res.push(
-                  ...(await orgCtrl.user.searchTargets(event.target.value, [
-                    TargetType.Person,
-                  ])),
-                );
-                break;
-              case TargetType.Company:
-                res.push(
-                  ...(await orgCtrl.user.searchTargets(event.target.value, [
-                    TargetType.Company,
-                  ])),
-                );
-                break;
-              case TargetType.Group:
-                res.push(
-                  ...(await orgCtrl.user.searchTargets(event.target.value, [
-                    TargetType.Group,
-                  ])),
-                );
-                break;
-              case TargetType.Cohort:
-                res.push(
-                  ...(await orgCtrl.user.searchTargets(event.target.value, [
-                    TargetType.Cohort,
-                  ])),
-                );
-                break;
-              case TargetType.Storage:
-                res.push(
-                  ...(await orgCtrl.user.searchTargets(event.target.value, [
-                    TargetType.Storage,
-                  ])),
-                );
-                break;
-            }
-            setDataSource(res);
-            if (props.autoSelect) {
-              setChecked(res.map((i) => i.id));
-              tableProps.searchCallback(res);
-            }
-          }
         }}
       />
-
       {dataSource.length > 0 && personInfoList()}
       {searchKey && dataSource.length == 0 && (
         <Result icon={<AiOutlineSmile />} title={`抱歉，没有查询到相关的结果`} />

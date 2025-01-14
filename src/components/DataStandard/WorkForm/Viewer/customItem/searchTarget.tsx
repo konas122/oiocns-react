@@ -8,24 +8,31 @@ import React, { useEffect, useState } from 'react';
 import orgCtrl from '@/ts/controller';
 
 interface SearchTargetItemProps extends IDropDownBoxOptions {
-  defaultValue?: string;
   typeName: TargetType;
 }
 
 const SearchTargetItem: React.FC<SearchTargetItemProps> = (props) => {
   const [searchEnabled, setSearchEnabled] = useState(false);
   const [selectTarget, setSelectTarget] = useState<schema.XTarget>();
-  const [value, setValue] = useState<string | undefined>(props.defaultValue);
+  const [value, setValue] = useState(props.value);
   useEffect(() => {
-    if (value && value && value.length > 5) {
-      orgCtrl.user.findEntityAsync(value).then((a) => {
-        setSelectTarget(a as schema.XTarget);
-      });
+    if (value) {
+      const regex = /^.*[\u4e00-\u9fa5]+.*$/;
+      if (regex.test(value)) {
+        setSelectTarget({
+          id: value,
+          name: value,
+          code: '',
+        } as schema.XTarget);
+      } else if (value.length > 5) {
+        orgCtrl.user.findEntityAsync(value).then((a) => {
+          setSelectTarget(a as schema.XTarget);
+        });
+      }
     } else {
       setSelectTarget(undefined);
     }
-    props.onValueChanged?.apply(this, [{ value } as any]);
-  }, [value, props]);
+  }, [value]);
 
   const fieldRender = () => {
     if (selectTarget) {
@@ -51,16 +58,14 @@ const SearchTargetItem: React.FC<SearchTargetItemProps> = (props) => {
     <DropDownBox
       {...props}
       opened={searchEnabled}
-      value={props.defaultValue}
+      value={props.value}
       fieldRender={fieldRender}
+      dataSource={[{ ...selectTarget }]}
+      displayExpr={'name'}
+      valueExpr={'id'}
       onOptionChanged={(e) => {
         if (e.name === 'opened') {
           setSearchEnabled(e.value);
-        }
-      }}
-      onValueChanged={(e) => {
-        if (e.value === null || e.value === undefined) {
-          setValue(undefined);
         }
       }}
       contentRender={() => {
@@ -69,6 +74,7 @@ const SearchTargetItem: React.FC<SearchTargetItemProps> = (props) => {
             searchCallback={(persons: schema.XTarget[]) => {
               if (persons.length > 0) {
                 setValue(persons[0].id);
+                props.onValueChanged?.({ value: persons[0].id } as any);
               }
               setSearchEnabled(false);
             }}

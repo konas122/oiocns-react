@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ProFormColumnsType } from '@ant-design/pro-components';
 import SchemaForm from '@/components/SchemaForm';
+import { kernel, model } from '@/ts/base';
 import { TargetModel } from '@/ts/base/model';
 import { ITarget, TargetType, departmentTypes } from '@/ts/core';
 import UploadItem from '../../tools/uploadItem';
+import UpdatePhone from '../../tools/updatePhone';
 import { EntityColumns } from './entityColumns';
+import { BathNewDepartment } from '@/executor/tools/uploadDepartments';
+import { Button } from 'antd';
 
 interface Iprops {
   formType: string;
@@ -21,6 +25,10 @@ const TargetForm = (props: Iprops) => {
   let types: string[] = [props.current.typeName];
   const readonly = props.formType === 'remark';
   let initialValue: any = props.current.metadata;
+  const [formData, setFormData] = useState<model.LoginModel>({
+    account: '',
+  });
+
   switch (props.formType) {
     case 'newCohort':
       typeName = '群组';
@@ -51,7 +59,7 @@ const TargetForm = (props: Iprops) => {
       title = '设立单位';
       types = [TargetType.Company];
       initialValue = {};
-      tcodeLabel = '企业信用代码';
+      tcodeLabel = '社会统一信用代码';
       break;
     case 'newDepartment':
       typeName = '部门';
@@ -70,7 +78,7 @@ const TargetForm = (props: Iprops) => {
         if (typeName === '人员') {
           tcodeLabel = '手机号码';
         } else {
-          tcodeLabel = '企业信用代码';
+          tcodeLabel = '社会统一信用代码';
         }
       }
       break;
@@ -81,7 +89,7 @@ const TargetForm = (props: Iprops) => {
         if (typeName === '人员') {
           tcodeLabel = '手机号码';
         } else {
-          tcodeLabel = '企业信用代码';
+          tcodeLabel = '社会统一信用代码';
         }
       }
       break;
@@ -112,7 +120,13 @@ const TargetForm = (props: Iprops) => {
       dataIndex: 'name',
       readonly: readonly,
       formItemProps: {
-        rules: [{ required: true, message: '分类名称为必填项' }],
+        rules: [
+          { required: true, message: '分类名称为必填项' },
+          {
+            pattern: title === '设立单位' ? /^(?!\d{5,255}$)[\d\D]{5,255}$/ : undefined,
+            message: '允许5-255个不能是纯数字的字符',
+          },
+        ],
       },
     },
     {
@@ -133,18 +147,80 @@ const TargetForm = (props: Iprops) => {
         rules: [{ required: true, message: '类型为必填项' }],
       },
     },
-    {
+  ];
+  if (title === '设立部门') {
+    columns.unshift({
+      title: '',
+      dataIndex: 'NewBathDepartment',
+      colProps: { span: 24 },
+      readonly: readonly,
+      renderFormItem: () => {
+        return (
+          <Button onClick={() => BathNewDepartment(props.current as any)}>
+            批量设立部门
+          </Button>
+        );
+      },
+    });
+  }
+  if (readonly) {
+    columns.push(...EntityColumns(props.current.metadata));
+  }
+  if (tcodeLabel === '手机号码') {
+    columns.push({
+      title: tcodeLabel,
+      dataIndex: 'code',
+      readonly: readonly,
+      formItemProps: {
+        rules: [{ required: true, message: '手机号码为必填项' }],
+      },
+      renderFormItem: (_, __, form) => {
+        return (
+          <UpdatePhone
+            title="修改手机号"
+            value={form.getFieldValue('code')}
+            readonly={true}
+            onChanged={(value: model.LoginModel) => {
+              form.setFieldValue('code', value.account);
+              setFormData(value);
+            }}
+          />
+        );
+      },
+    });
+  } else {
+    columns.push({
       title: tcodeLabel,
       dataIndex: 'code',
       readonly: readonly,
       formItemProps: {
         rules: [{ required: true, message: '分类代码为必填项' }],
       },
-    },
-  ];
-  if (readonly) {
-    columns.push(...EntityColumns(props.current.metadata));
+    });
   }
+  if (
+    ['newGroup'].includes(props.formType) ||
+    ['组织群'].includes(props.current.typeName)
+  ) {
+    columns.push({
+      title: '当前数据核',
+      dataIndex: 'storeId',
+      valueType: 'select',
+      fieldProps: {
+        options: props.current.space.storages.map((i) => {
+          return {
+            value: i.id,
+            label: i.name,
+          };
+        }),
+      },
+    });
+  }
+  columns.push({
+    title: '是否公开',
+    dataIndex: 'public',
+    valueType: 'switch',
+  });
   columns.push({
     title: '简介',
     dataIndex: 'remark',
@@ -172,20 +248,27 @@ const TargetForm = (props: Iprops) => {
         }
       }}
       onFinish={async (values) => {
+        var success = false;
         switch (props.formType) {
-          case 'update':
+          case 'update': {
             values.teamName = values.name;
             values.teamCode = values.code;
-            await props.current.update(values);
-            break;
-          default:
-            if (props.formType.startsWith('new')) {
-              await props.current.createTarget(values);
+            let data = { ...values, ...formData };
+            success = await props.current.update(data);
+            if (data.storeId && data.storeId !== props.current.metadata.storeId) {
+              await kernel.activateStorage({ id: data.storeId, subId: props.current.id });
             }
             break;
+          }
+          default:
+            success =
+              props.formType.startsWith('new') &&
+              (await props.current.createTarget({ ...values, ...formData })) != undefined;
+            break;
         }
-        props.finished();
-      }}></SchemaForm>
+        success && props.finished();
+      }}
+    />
   );
 };
 

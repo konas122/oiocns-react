@@ -1,12 +1,12 @@
-import HostManagerBase from '../../../design/pageBuilder/render/HostManager';
-import { IPageTemplate } from '@/ts/core/thing/standard/page';
+import HostManagerBase from '@/components/PageElement/render/HostManager';
 import { IDisposable } from '@/ts/base/common';
+import { IElementHost, XElementHost } from '@/ts/element/standard';
 
-export default class ViewerManager
-  extends HostManagerBase<'view'>
+export default class ViewerManager<E extends XElementHost = XElementHost>
+  extends HostManagerBase<'view', E>
   implements IDisposable
 {
-  constructor(pageFile: IPageTemplate) {
+  constructor(pageFile: IElementHost<E>) {
     super('view', pageFile);
   }
 

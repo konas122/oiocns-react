@@ -1,5 +1,7 @@
+import { ViewType } from '../../base/enum';
 import { PageModel } from '../../base/model';
 import { TargetType, ValueType } from './enums';
+import { personJoins, targetOperates } from './operates';
 
 /** 资产共享云模块权限Id */
 export const orgAuth = {
@@ -26,6 +28,7 @@ export const departmentTypes = [
 /** 支持的值类型 */
 export const valueTypes = [
   ValueType.Number,
+  ValueType.Currency,
   ValueType.Remark,
   ValueType.Select,
   ValueType.Species,
@@ -34,6 +37,8 @@ export const valueTypes = [
   ValueType.Date,
   ValueType.File,
   ValueType.Reference,
+  ValueType.Map,
+  ValueType.Object,
 ];
 /** 表单弹框支持的类型 */
 export const formModalType = {
@@ -107,3 +112,49 @@ export const StatusMap = new Map([
     },
   ],
 ]);
+
+/** 成员选择框-办事过滤条件 */
+export const MemberFilter = {
+  id: 'unit/cluster',
+  label: '本单位/本集群',
+};
+
+// 门户的个人快捷操作
+export const PersonQuickOperate = [
+  targetOperates.NewStorage,
+  targetOperates.JoinStorage,
+  targetOperates.JoinFriend,
+  targetOperates.NewCohort,
+  personJoins.menus[1],
+  targetOperates.NewCompany,
+  personJoins.menus[2],
+];
+
+export const CompanyQuickOperate = [
+  targetOperates.JoinStorage,
+  targetOperates.NewDepartment,
+  targetOperates.JoinDepartment,
+  targetOperates.NewGroup,
+  targetOperates.JoinGroup,
+  targetOperates.NewCohort,
+];
+/** 支持的视图类型 */
+export const ViewTypes = [
+  ViewType.Form,
+  ViewType.Report,
+  ViewType.Chart,
+  ViewType.Total,
+  ViewType.Summary,
+];
+
+/** 配置限额规则 - 关联查询集合 - 常量字段 */
+export const deprecitionForm = 'DEPRECITIONFORM';
+
+/** 配置限额规则 - 关联查询集合 - 计算月差值常量字段 */
+export const monthsDifference = 'MONTHSDIFFERENCE';
+
+/** 配置限额规则 - 校验可更新数值  */
+export const validForDepreciation = 'VALIDFORDEPRECIATION';
+
+/** 支持设置权限的应用  */
+export const AuthApps = ['目录','应用', '模块', '办事', '表单', '视图', '报表']

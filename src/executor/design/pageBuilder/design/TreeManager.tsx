@@ -3,9 +3,9 @@ import CustomTree from '@/components/CustomTree';
 import { MinusOutlined, PlusOutlined } from '@ant-design/icons';
 import { Button, Space, Tag } from 'antd';
 import React, { useContext, useRef, useState } from 'react';
-import { ElementType, ElementTypeName } from '../core/ElementMeta';
-import { PageElement } from '../core/PageElement';
-import { DesignContext, PageContext } from '../render/PageContext';
+import { ElementTreeNodeType, ElementTreeNodeName } from '@/ts/element/ElementMeta';
+import { PageElement } from '@/ts/element/PageElement';
+import { DesignContext, PageContext } from '@/components/PageElement/render/PageContext';
 import AddElementModal from './AddElementModal';
 import { removeElement } from './config/ElementProps';
 import cls from './tree.module.less';
@@ -14,7 +14,7 @@ const buildElementTree = (
   element: PageElement,
   ctx: DesignContext,
   parent?: PageElement,
-  typeName?: ElementType,
+  typeName?: ElementTreeNodeType,
   prop?: string,
   children: PageElement[] = [],
 ): any => {
@@ -89,6 +89,7 @@ const TreeManager: React.FC<{}> = () => {
       <AddElementModal
         parentId={ctx.view.currentElement?.id!}
         prop={prop.current}
+        accepts={ctx.view.accepts}
         onFinished={() => setCenter(<></>)}
       />,
     );
@@ -116,13 +117,15 @@ const TreeManager: React.FC<{}> = () => {
           return (
             <div className={cls.node}>
               <Space size={0}>
-                <Tag>{node.item.name}</Tag>
-                <Tag>{node.item.kind}</Tag>
-                <Tag>{ElementTypeName[node.typeName as ElementType]}</Tag>
+                <span style={{ marginRight: '8px' }}>{node.item.name}</span>
+                <Tag color="processing">{node.item.kind}</Tag>
+                <Tag color="success">
+                  {ElementTreeNodeName[node.typeName as ElementTreeNodeType]}
+                </Tag>
                 {node.item.props.seize && <Tag color="red">未放置</Tag>}
               </Space>
               <Space>
-                {['ArraySlot', 'Container'].includes(node.typeName) && (
+                {['ArraySlot', 'Container', 'Document'].includes(node.typeName) && (
                   <Button
                     shape="circle"
                     size="small"

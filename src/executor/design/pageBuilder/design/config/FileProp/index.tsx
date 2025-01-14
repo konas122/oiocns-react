@@ -1,15 +1,15 @@
 import OpenFileDialog, { IFileDialogProps } from '@/components/OpenFileDialog';
-import { schema } from '@/ts/base';
 import { Tooltip } from 'antd';
 import React, { ReactNode, useContext, useState } from 'react';
-import { PageContext } from '../../../render/PageContext';
+import { PageContext } from '@/components/PageElement/render/PageContext';
 import { IExistTypeProps } from '../IExistTypeEditor';
 import cls from './index.module.less';
 import { CloseCircleOutlined } from '@ant-design/icons';
 import { IFile } from '@/ts/core';
 import { pick } from 'lodash';
+import { SEntity } from '@/ts/element/standard';
 
-export interface SEntity extends Pick<schema.XEntity, 'id' | 'name'> {}
+export type { SEntity } from '@/ts/element/standard';
 
 export interface SProperty extends SEntity {
   valueType: string;
@@ -18,6 +18,7 @@ export interface SProperty extends SEntity {
 
 interface IProps extends Omit<IFileDialogProps, 'rootKey' | 'onCancel'> {
   children: ReactNode;
+  readonly?: boolean;
 }
 
 export const File: React.FC<IProps> = (props) => {
@@ -28,9 +29,13 @@ export const File: React.FC<IProps> = (props) => {
       <div
         style={{ width: '100%' }}
         onClick={() => {
+          if (props.readonly) {
+            return;
+          }
           setCenter(
             <OpenFileDialog
               {...props}
+              multiple={true}
               rootKey={ctx.view.pageInfo.directory.spaceKey}
               onOk={(files) => {
                 if (files.length > 0) {
@@ -105,9 +110,9 @@ interface IBase extends IExistTypeProps<any> {
 
 export const BaseFile: React.FC<IBase> = (props) => {
   return (
-    <File onOk={props.onOk} accepts={props.accepts}>
+    <File onOk={props.onOk} accepts={props.accepts} readonly={props.readonly}>
       <TipDesignText value={props.showName}>
-        <Delete {...props} />
+        {!props.readonly && <Delete {...props} />}
       </TipDesignText>
     </File>
   );
@@ -129,8 +134,20 @@ export const Work: React.FC<IExistTypeProps<SEntity>> = (props) => {
     <BaseFile
       {...props}
       accepts={['办事']}
-      showName={props.value?.name ?? '绑定办事'}
-      onOk={(fs) => props.onChange(pick(fs[0].metadata, 'id', 'name'))}
+      showName={
+        props.value?.length > 0
+          ? `已选择${props.value?.length}个`
+          : props.value?.name ?? '绑定办事'
+      }
+      onOk={(fs) => {
+        if (props.multiple) {
+          fs.forEach((item) => {
+            props.onChange(pick(item.metadata, 'id', 'name'));
+          });
+        } else {
+          props.onChange(pick(fs[0].metadata, 'id', 'name'));
+        }
+      }}
     />
   );
 };
@@ -139,8 +156,46 @@ export const Form: React.FC<IExistTypeProps<SEntity>> = (props) => {
   return (
     <BaseFile
       {...props}
-      accepts={['表单']}
-      showName={props.value?.name ?? '绑定表单'}
+      accepts={['表单', '报表', '表格']}
+      showName={
+        props.value?.length > 0
+          ? `已选择${props.value!.length}个`
+          : props.value?.name ?? '绑定表单'
+      }
+      onOk={(fs) => {
+        if (props.multiple) {
+          fs.forEach((item) => {
+            props.onChange(pick(item.metadata, 'id', 'name'));
+          });
+        } else {
+          props.onChange(pick(fs[0].metadata, 'id', 'name'));
+        }
+      }}
+    />
+  );
+};
+
+export const Species: React.FC<IExistTypeProps<SEntity>> = (props) => {
+  return (
+    <BaseFile
+      {...props}
+      accepts={['分类']}
+      showName={props.value?.name ?? '绑定分类'}
+      onOk={(fs) => props.onChange(pick(fs[0].metadata, 'id', 'name'))}
+    />
+  );
+};
+
+export const Property: React.FC<
+  IExistTypeProps<SEntity> & {
+    propType?: string[];
+  }
+> = (props) => {
+  return (
+    <BaseFile
+      {...props}
+      accepts={props.propType ? props.propType : ['属性']}
+      showName={props.value?.name ?? '绑定属性'}
       onOk={(fs) => props.onChange(pick(fs[0].metadata, 'id', 'name'))}
     />
   );

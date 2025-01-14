@@ -1,16 +1,19 @@
+import { MonacoEditor } from '@/components/Common/MonacoEditor';
+import FullScreenModal from '@/components/Common/fullScreen';
+import {
+  ApartmentOutlined,
+  CheckOutlined,
+  FileOutlined,
+  RightCircleOutlined,
+} from '@ant-design/icons';
 import { Layout, Menu, message } from 'antd';
 import React, { ReactNode, useContext, useState } from 'react';
-import { DesignContext, PageContext } from '../render/PageContext';
-import FullScreenModal from '@/components/Common/fullScreen';
-import { CheckOutlined, FileOutlined, RightCircleOutlined } from '@ant-design/icons';
-import { json } from '@codemirror/lang-json';
-import CodeMirror from '@uiw/react-codemirror';
 import { ViewerHost } from '../../../open/page/view/ViewerHost';
 import ViewerManager from '../../../open/page/view/ViewerManager';
+import { DesignContext, PageContext } from '@/components/PageElement/render/PageContext';
 import TreeManager from './TreeManager';
 import ElementProps from './config/ElementProps';
 import css from './designer.module.less';
-import { AiOutlineApartment } from 'react-icons/ai';
 
 export interface DesignerProps {
   ctx: DesignContext;
@@ -30,15 +33,7 @@ const Coder: React.FC<{}> = () => {
       setData(stringify(ctx));
     }
   });
-  return (
-    <CodeMirror
-      style={{ marginTop: 10 }}
-      value={data}
-      editable={false}
-      extensions={[json()]}
-      onChange={setData}
-    />
-  );
+  return <MonacoEditor value={data} language="json" onChange={setData} />;
 };
 
 export function DesignerHost({ ctx }: DesignerProps) {
@@ -54,14 +49,12 @@ export function DesignerHost({ ctx }: DesignerProps) {
     }
   });
 
-  console.log('re-render');
-
   function renderTabs() {
     return [
       {
         key: 'tree',
         label: '元素树',
-        icon: <AiOutlineApartment />,
+        icon: <ApartmentOutlined />,
       },
       {
         key: 'data',

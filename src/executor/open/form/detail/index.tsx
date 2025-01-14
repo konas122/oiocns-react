@@ -1,10 +1,11 @@
-import { Card, Tabs } from 'antd';
-import React from 'react';
-import { ImUndo2 } from 'react-icons/im';
-import ThingArchive from './archive';
+import { Card, Tabs, message } from 'antd';
+import React, { useState, useEffect } from 'react';
 import { IForm } from '@/ts/core';
-import { schema } from '@/ts/base';
-import WorkFormViewer from '@/components/DataStandard/WorkForm/Viewer';
+import { schema, model } from '@/ts/base';
+import { ImUndo2 } from 'react-icons/im';
+import CardView from './CardView';
+import MatterView from './MatterView';
+import FormView from './FormView';
 
 interface IProps {
   form: IForm;
@@ -17,44 +18,67 @@ interface IProps {
  * @returns
  */
 const ThingView: React.FC<IProps> = (props) => {
-  const convertData = () => {
-    let data: any = {};
-    for (let [key, value] of Object.entries(props.thingData)) {
-      const field = props.form.fields.find((a) => a.code == key);
-      if (field) {
-        data[field.id] = value;
+  const ThingActive = localStorage.getItem('activeView');
+  const [activeTabKey, setActiveTabKey] = useState(ThingActive ? ThingActive : 'card');
+  const [thingDatas, setThingDatas] = useState<schema.XThing>(props.thingData);
+
+  useEffect(() => {
+    const loadOptions: model.LoadOptions = {
+      options: {
+        match: {
+          isDeleted: false,
+          id: { $in: [props.thingData.id] },
+        },
+      },
+    };
+    const loadData = async () => {
+      try {
+        const result = await props.form.loadArchives(loadOptions);
+        const updatedThingData = {
+          ...props.thingData,
+          archives: result.data[0].archives,
+        };
+        setThingDatas(updatedThingData);
+      } catch (error) {
+        message.error('加载数据失败');
       }
-    }
-    return data;
+    };
+    loadData();
+  }, [props.thingData, props.form]);
+
+  const onTabsChange = (e: string) => {
+    setActiveTabKey(e);
+    localStorage.setItem('activeView', e);
   };
+
+  /** 加载每一项 */
+  const loadItems = () => {
+    const items = [
+      {
+        key: 'card',
+        label: '卡片视图',
+        children: <CardView form={props.form} thingData={thingDatas} />,
+      },
+      {
+        key: 'matter',
+        label: '事项视图',
+        children: <MatterView form={props.form} thingData={thingDatas} />,
+      },
+      {
+        key: 'form',
+        label: '归档痕迹视图',
+        children: <FormView form={props.form} thingData={thingDatas} />,
+      },
+    ];
+    return items;
+  };
+
   return (
     <Card>
       <Tabs
-        items={[
-          {
-            key: '1',
-            label: `卡片信息`,
-            children: (
-              <WorkFormViewer
-                readonly
-                rules={[]}
-                changedFields={[]}
-                key={props.form.id}
-                form={props.form.metadata}
-                fields={props.form.fields}
-                data={convertData()}
-                belong={props.form.directory.target.space}
-              />
-            ),
-          },
-          {
-            key: '2',
-            label: `归档痕迹`,
-            children: (
-              <ThingArchive instances={Object.values(props.thingData.archives)} />
-            ),
-          },
-        ]}
+        activeKey={activeTabKey}
+        onChange={onTabsChange}
+        items={loadItems()}
         tabBarExtraContent={
           <div
             style={{ display: 'flex', cursor: 'pointer' }}

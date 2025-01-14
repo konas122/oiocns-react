@@ -32,7 +32,6 @@ const CommonGroups: React.FC<IProps> = ({ onClose, preGroups, commons }) => {
       <div className="appName">{item.typeName}</div>
       <div className="appName">{item.name}</div>
       <div className="teamName">{item.directory.target.name}</div>
-      <div className="teamName">{item.directory.target.space.name}</div>
     </div>
   );
   // 加载多个应用

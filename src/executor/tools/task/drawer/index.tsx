@@ -1,6 +1,6 @@
 import React from 'react';
 import { Drawer, Typography } from 'antd';
-import { NodeModel } from '@/components/Common/FlowDesign/processType';
+import { WorkNodeDisplayModel } from '@/utils/work';
 import { schema } from '@/ts/base';
 import EntityIcon from '@/components/Common/GlobalComps/entityIcon';
 /**
@@ -11,7 +11,7 @@ import EntityIcon from '@/components/Common/GlobalComps/entityIcon';
 interface IProps {
   instance: schema.XWorkInstance;
   isOpen: boolean;
-  current: NodeModel;
+  current: WorkNodeDisplayModel;
   onClose: () => void;
 }
 

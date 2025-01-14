@@ -67,8 +67,9 @@ const ExcelForm: React.FC<IProps> = ({ transfer, current, finished }) => {
                 let forms = formIds.map((item) => transfer.forms[item]);
                 generateXlsx(
                   new Excel(
+                    transfer.directory.target.space,
                     transfer.template<schema.XThing>(forms).map((sheet) => {
-                      return new AnyHandler({ ...sheet, dir: transfer.directory });
+                      return new AnyHandler(sheet);
                     }),
                   ),
                   '表单模板',

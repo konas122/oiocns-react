@@ -1,8 +1,8 @@
 import { kernel, model } from '@/ts/base';
-import orgCtrl from '@/ts/controller';
 import Ajv from 'ajv';
 import { Executor } from '.';
 import { FormData } from './index';
+import { WebhookExecutor } from '@/ts/base/model';
 
 const ajv = new Ajv();
 const object = {
@@ -43,10 +43,13 @@ const schema = {
 /**
  * 外部链接
  */
-export class Webhook extends Executor {
+export class Webhook extends Executor<WebhookExecutor> {
   async execute(data: FormData): Promise<boolean> {
     this.changeProgress(0);
-    const work = await this.task.findWorkById(this.task.taskdata.defineId);
+    const work = await this.task.loadWork(
+      this.task.taskdata.defineId,
+      this.task.taskdata.defineShareId || this.task.taskdata.shareId,
+    );
     const result = await kernel.httpForward({
       uri: this.metadata.hookUrl,
       method: 'POST',
@@ -54,7 +57,7 @@ export class Webhook extends Executor {
       content: JSON.stringify({
         work: work?.metadata,
         taskData: this.task.taskdata,
-        person: orgCtrl.user.metadata,
+        person: kernel.user,
         belong: this.task.belong.metadata,
         instanceData: this.task.instanceData,
       }),
@@ -79,7 +82,9 @@ export class Webhook extends Executor {
           for (const item of entry[1].after) {
             const belongId = this.task.belong.metadata.id;
             const result = await kernel.createThing(belongId, [belongId], item.name);
-            Object.assign(item, result.data);
+            if (result.data.length > 0) {
+              Object.assign(item, result.data[0]);
+            }
           }
           data.set(entry[0], entry[1]);
           if (this.task.instanceData?.data) {

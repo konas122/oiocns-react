@@ -12,6 +12,9 @@ import { IPerson } from '../person';
 import { logger, sleep } from '@/ts/base/common';
 import { IBelong } from './belong';
 import { MemberDirectory } from './member';
+import { ISpecies, Species } from '../../thing/standard/species';
+import { IRecorder, Recorder } from '../../thing/recorder';
+import { XObject } from '../../public/object';
 
 /** 用户抽象接口类 */
 export interface ITarget extends ITeam, IFileInfo<schema.XTarget> {
@@ -21,6 +24,8 @@ export interface ITarget extends ITeam, IFileInfo<schema.XTarget> {
   resource: DataResource;
   /** 用户设立的身份(角色) */
   identitys: IIdentity[];
+  /** 用户缓存对象 */
+  cacheObj: XObject<schema.Xbase>;
   /** 子用户 */
   subTarget: ITarget[];
   /** 所有相关用户 */
@@ -29,6 +34,10 @@ export interface ITarget extends ITeam, IFileInfo<schema.XTarget> {
   chats: ISession[];
   /** 当前目录 */
   directory: IDirectory;
+  /** 数据核 */
+  storeId: string;
+  /** 接受的文件 */
+  accepts: string[];
   /** 成员目录 */
   memberDirectory: IDirectory;
   /** 退出用户群 */
@@ -39,6 +48,8 @@ export interface ITarget extends ITeam, IFileInfo<schema.XTarget> {
   createIdentity(data: model.IdentityModel): Promise<IIdentity | undefined>;
   /** 发送身份变更通知 */
   sendIdentityChangeMsg(data: any): Promise<boolean>;
+  /** 转为组织分类 */
+  toSpecies(directory: IDirectory): Promise<schema.XSpecies | undefined>;
 }
 
 /** 用户基类实现 */
@@ -63,6 +74,7 @@ export abstract class Target extends Team implements ITarget {
       this.user = this as unknown as IPerson;
     }
     this.cache = { fullId: `${_metadata.belongId}_${_metadata.id}` };
+    this.cacheObj = new XObject(_metadata, 'target-cache', [], [this.key]);
     this.resource = new DataResource(_metadata, _relations, [this.key]);
     this.directory = new Directory(
       {
@@ -75,6 +87,8 @@ export abstract class Target extends Team implements ITarget {
     );
     this.memberDirectory = new MemberDirectory(this);
     this.session = new Session(this.id, this, _metadata);
+    this.recorder = new Recorder(this);
+    this.path = [..._relations];
     setTimeout(
       async () => {
         await this.loadUserData(_keys, _metadata);
@@ -82,6 +96,10 @@ export abstract class Target extends Team implements ITarget {
       this.id === this.userId ? 100 : 0,
     );
   }
+  cacheObj: XObject<schema.Xbase>;
+  sourceId?: string | undefined;
+  path: string[];
+  recorder: IRecorder<schema.XTarget>;
   user: IPerson;
   space: IBelong;
   session: ISession;
@@ -91,6 +109,7 @@ export abstract class Target extends Team implements ITarget {
   identitys: IIdentity[] = [];
   memberDirectory: IDirectory;
   canDesign: boolean = false;
+  accepts: string[] = ['人员'];
   get spaceId(): string {
     return this.space.id;
   }
@@ -108,6 +127,9 @@ export abstract class Target extends Team implements ITarget {
   }
   get superior(): IFile {
     return this.space;
+  }
+  get storeId(): string {
+    return this._metadata.storeId;
   }
   private _identityLoaded: boolean = false;
   async restore(): Promise<boolean> {
@@ -238,6 +260,49 @@ export abstract class Target extends Team implements ITarget {
       }
     }
   }
+  async toSpecies(dest: IDirectory): Promise<schema.XSpecies | undefined> {
+    const ret = await dest.standard.createSpecies({
+      generateTargetId: this.metadata.id,
+      name: this.metadata.name,
+      code: this.metadata.code,
+      remark: this.metadata.remark,
+      icon: this.metadata.icon,
+      tags: '组织分类',
+      typeName: '分类',
+      belongId: dest.belongId,
+      shareId: dest.target.id,
+    } as schema.XSpecies);
+    if (ret) {
+      const genSpeciesItem = async (species: ISpecies, team: ITarget) => {
+        const toSpeciesItem = (target: schema.XTarget, parentId?: string) => {
+          return {
+            code: target.code,
+            parentId: parentId,
+            name: target.name,
+            info: target.id,
+            remark: target.name,
+            icon: target.icon,
+            belongId: dest.target.space.id,
+            shareId: dest.target.id,
+            typeName: '分类项',
+          } as unknown as schema.XSpeciesItem;
+        };
+        const itemRet = await species.createItem(toSpeciesItem(team.metadata));
+        if (itemRet) {
+          for (const member of team.members) {
+            if (member.typeName !== TargetType.Person) {
+              await species.createItem(toSpeciesItem(member, itemRet.id));
+            }
+          }
+          for (const child of team.subTarget) {
+            await genSpeciesItem(species, child);
+          }
+        }
+      };
+      genSpeciesItem(new Species(ret, dest), this);
+    }
+    return;
+  }
   async sendIdentityChangeMsg(data: any): Promise<boolean> {
     const res = await kernel.dataNotify({
       data: data,
@@ -248,6 +313,7 @@ export abstract class Target extends Team implements ITarget {
       onlyTarget: false,
       ignoreSelf: true,
       targetId: this.metadata.id,
+      targetType: 'target',
     });
     return res.success;
   }
@@ -296,5 +362,9 @@ export abstract class Target extends Team implements ITarget {
       this.changCallback();
       this.directory.changCallback();
     }
+  }
+  async toggleCommon(_?: boolean | undefined): Promise<boolean> {
+    await sleep(0);
+    return false;
   }
 }

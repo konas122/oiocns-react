@@ -1,10 +1,13 @@
+import { Script } from '@/ts/scripting/js/ScriptHost';
+import { BaseSheet } from '@/utils/excel/impl';
 import { Command, common, kernel, model } from '../../../../base';
+import { IWork } from '../../../work';
 import { IDirectory } from '../../directory';
 import { IStandardFileInfo, StandardFileInfo } from '../../fileinfo';
 import { Application, IApplication } from '../application';
 import { Form, IForm } from '../form';
 import { ITask, Task, VisitedData } from './task';
-import { IWork } from '../../../work';
+import { IPrint, Print } from '../print';
 
 type NullableString = string | undefined;
 
@@ -29,8 +32,12 @@ export interface ITransfer extends IStandardFileInfo<model.Transfer> {
   status: model.GStatus;
   /** 关联的表单 */
   forms: { [id: string]: IForm };
+  /** 关联的打印模板 */
+  prints: { [id: string]: IPrint };
   /** 加载表单 */
   loadForms(formIds?: NullableString[]): Promise<void>;
+  /** 加载打印模板 */
+  loadPrints(printIds?: NullableString[]): Promise<void>;
   /** 关联的迁移配置 */
   transfers: { [id: string]: ITransfer };
   /** 加载迁移配置 */
@@ -54,7 +61,7 @@ export interface ITransfer extends IStandardFileInfo<model.Transfer> {
   /** 脚本 */
   running(code: string, args: any, env?: model.KeyValue): any;
   /** 模板 */
-  template<T>(forms: IForm[]): model.Sheet<T>[];
+  template<T>(forms: IForm[]): BaseSheet<T>[];
   /** 创建任务 */
   execute(
     status: 'Editable' | 'Viewable',
@@ -83,6 +90,7 @@ export class Transfer extends StandardFileInfo<model.Transfer> implements ITrans
     this.taskList = [];
     this.status = status;
     this.forms = {};
+    this.prints = {};
     this.transfers = { [this.id]: this };
     this.applications = {};
     this.works = {};
@@ -95,6 +103,7 @@ export class Transfer extends StandardFileInfo<model.Transfer> implements ITrans
   taskList: ITask[];
   status: model.GStatus;
   forms: { [id: string]: IForm };
+  prints: { [id: string]: IPrint };
   transfers: { [id: string]: ITransfer };
   applications: { [id: string]: IApplication };
   works: { [id: string]: IWork };
@@ -154,6 +163,24 @@ export class Transfer extends StandardFileInfo<model.Transfer> implements ITrans
       }
     }
   }
+  async loadPrints(printIds?: NullableString[]) {
+    const prints: string[] = [];
+    printIds?.forEach((item) => {
+      if (item && !this.prints[item]) {
+        prints.push(item);
+      }
+    });
+    if (prints.length > 0) {
+      const res = await this.directory.resource.printColl.find(prints);
+      if (res.length > 0) {
+        for (const item of res) {
+          const print = new Print(item, this.directory);
+          await print.loadContent();
+          this.prints[print.id] = print;
+        }
+      }
+    }
+  }
 
   async loadTransfers(transferIds?: NullableString[]) {
     const transfers: string[] = [];
@@ -200,6 +227,7 @@ export class Transfer extends StandardFileInfo<model.Transfer> implements ITrans
 
   async initializing(): Promise<boolean> {
     const formIds: NullableString[] = [];
+    const printIds: NullableString[] = [];
     const transferIds: NullableString[] = [];
     const appIds: NullableString[] = [];
     const workIds: NullableString[] = [];
@@ -218,12 +246,16 @@ export class Transfer extends StandardFileInfo<model.Transfer> implements ITrans
         case '表单':
           formIds.push((node as any).formId);
           break;
+        case '打印模板':
+          printIds.push((node as any).printId);
+          break;
         case '表格':
           formIds.push(...(node as any).formIds);
           break;
       }
     }
     await this.loadForms(formIds);
+    await this.loadPrints(printIds);
     await this.loadTransfers(transferIds);
     await this.loadWorks(appIds, workIds);
     return true;
@@ -280,8 +312,8 @@ export class Transfer extends StandardFileInfo<model.Transfer> implements ITrans
     return await super.update(data);
   }
 
-  template<T>(forms: IForm[]): model.Sheet<T>[] {
-    const ans: model.Sheet<T>[] = [];
+  template<T>(forms: IForm[]): BaseSheet<T>[] {
+    const ans: BaseSheet<T>[] = [];
     for (const form of forms) {
       const columns: model.Column[] = [
         { title: '主键', dataIndex: 'id', valueType: '描述型' },
@@ -294,12 +326,7 @@ export class Transfer extends StandardFileInfo<model.Transfer> implements ITrans
           lookups: field.lookups,
         });
       }
-      ans.push({
-        id: form.id,
-        name: form.name,
-        columns: columns,
-        data: [],
-      });
+      ans.push(new BaseSheet(form.id, form.name, columns));
     }
     return ans;
   }
@@ -311,12 +338,9 @@ export class Transfer extends StandardFileInfo<model.Transfer> implements ITrans
       nextData: {},
       decrypt: common.decrypt,
       encrypt: common.encrypt,
-      log: (args: any) => {
-        // console.log(args);
-      },
     };
-    common.Sandbox(code)(runtime);
-    return runtime.nextData;
+    const script = new Script<{ nextData: any }>(code + '\nexports.default = nextData;');
+    return script.eval(runtime).nextData ?? {};
   }
 
   async execute(

@@ -1,15 +1,20 @@
 import * as t from '../type';
+import * as i from '../impl';
 
 /**
  * 读取 Excel Sheet 配置默认实现
  */
-export abstract class SheetHandler<S extends t.model.Sheet<any>>
+export abstract class SheetHandler<S extends i.BaseSheet<any>>
   implements t.ISheetHandler<S>
 {
   sheet: S;
 
   constructor(sheet: S) {
     this.sheet = sheet;
+  }
+
+  onError(error: t.Error): t.Error {
+    return error;
   }
 
   assert(

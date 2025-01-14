@@ -6,12 +6,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   </head>
   <body>
+    <script>
+      /* HACK: 部分依赖（如@bable/types）需要访问process.env来检查参数；
+       * 而monaco-editor需要通过通过是否存在process对象来检查是否node环境，并调整部分功能的实现（如粘贴），
+       * 见monaco-editor/esm/vs/base/common/platform.js
+       *
+       * 通过暴露特殊的配置对象骗过MonacoEditor强制使其判断为web环境
+       */
+      (() => {
+        let p = '';
+        p.versions = null;
+
+        window.vscode = {
+          process: p,
+        };
+      })();
+
+      if (typeof window.__REACT_DEVTOOLS_GLOBAL_HOOK__ === 'object') {
+        window.console = new Proxy(window.console, {
+          set(_, p) {
+            // 阻止react devtool hook console方法
+            return false;
+          },
+        });
+      }
+      window._AMapSecurityConfig = {
+        securityJsCode: "43b198b700a8ad265e472924744cd0d8",
+      }
+    </script>
+    <script type="module">
+      import {Buffer} from 'buffer';
+      window.Buffer = Buffer;
+    </script>
     <div id="root"></div>
     <script type="text/javascript">
-      (function() {
+      (function () {
         const shortcut = document.getElementById('icon');
         const names = window.location.hostname.split('.');
         if (names.length > 0) {
+          if (names[0] === 'ai' && names[1] === 'zjhealthcloud') {
+            names[0] = 'healthcloud';
+          }
           switch (names[0]) {
             case 'anxinwu':
               document.title = '安心屋';
@@ -22,6 +57,10 @@
               shortcut.setAttribute('href', 'favicon/gongyicang.ico');
               return;
             case 'asset':
+              document.title = '资产共享云';
+              shortcut.setAttribute('href', 'favicon/asset.ico');
+              return;
+            case 'assetcloud':
               document.title = '资产共享云';
               shortcut.setAttribute('href', 'favicon/asset.ico');
               return;
@@ -41,11 +80,16 @@
               document.title = '校企监管平台';
               shortcut.setAttribute('href', 'favicon/company.ico');
               return;
+            case 'healthcloud':
+              document.title = '健康云';
+              shortcut.setAttribute('href', 'favicon/orginone.ico');
+              return;
           }
         }
         document.title = '奥集能';
       })();
     </script>
     <script type="module" src="/src/index.tsx"></script>
+    <script src="https://webapi.amap.com/maps?v=2.0&key=47a1860e672674dc1cc7592d8eb13000&plugin=AMap.AutoComplete"></script>
   </body>
 </html>

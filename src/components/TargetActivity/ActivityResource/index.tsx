@@ -33,7 +33,8 @@ const ActivityResource = (
             src={shareOpenLink(item.shareLink)}
             preview={{
               src: shareOpenLink(item.shareLink),
-            }}></Image>
+            }}
+            style={{ borderRadius: '4px' }}></Image>
         </div>
       );
     }

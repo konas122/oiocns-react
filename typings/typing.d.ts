@@ -4,3 +4,4 @@ declare module 'less-vars-to-js';
 declare module 'vite-plugin-style-import';
 declare module 'pako';
 declare module 'react-office-viewer';
+declare let AMap:any;

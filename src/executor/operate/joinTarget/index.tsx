@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { XTarget } from '@/ts/base/schema';
 import { IBelong, TargetType } from '@/ts/core';
 import SearchTarget from '@/components/Common/SearchTarget';
+import JoinDepartment from './JoinDepartment';
 import { Modal } from 'antd';
 import { schema } from '@/ts/base';
+import { logger } from '@/ts/base/common';
 
 type IProps = {
   cmd: string;
@@ -38,9 +40,37 @@ const JoinTarget: React.FC<IProps> = ({ cmd, current, finished }) => {
       modalTitle = '申请加入组织群';
       selectTargetType = TargetType.Group;
       break;
+    case 'joinDepartment':
+      modalTitle = '申请加入部门';
+      selectTargetType = current.typeName as TargetType;
+      break;
     default:
       return <></>;
   }
+  const renderContent = () => {
+    if (cmd === 'joinDepartment')
+      return (
+        <JoinDepartment
+          autoSelect
+          searchCallback={(persons: schema.XTarget[]) => {
+            setSelectMembers(persons);
+          }}
+          current={current}
+        />
+      );
+
+    return (
+      <SearchTarget
+        autoSelect
+        searchCallback={(persons: schema.XTarget[]) => {
+          setSelectMembers(persons);
+        }}
+        searchType={selectTargetType}
+        belongId={modalTitle === '申请加入部门' ? current.belongId : undefined}
+        code={modalTitle === '申请加入部门' ? current.metadata.code : undefined}
+      />
+    );
+  };
   return (
     <Modal
       destroyOnClose
@@ -48,19 +78,14 @@ const JoinTarget: React.FC<IProps> = ({ cmd, current, finished }) => {
       open={true}
       onOk={async () => {
         if (await current.applyJoin(selectMembers)) {
+          logger.info('申请成功！请等待审核...');
           finished();
         }
       }}
       onCancel={finished}
       okButtonProps={{ disabled: selectMembers.length < 1 }}
       width={670}>
-      <SearchTarget
-        autoSelect
-        searchCallback={(persons: schema.XTarget[]) => {
-          setSelectMembers(persons);
-        }}
-        searchType={selectTargetType}
-      />
+      {renderContent()}
     </Modal>
   );
 };

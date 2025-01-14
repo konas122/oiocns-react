@@ -2,6 +2,7 @@ export { departmentTypes, formModalType, orgAuth, PageAll } from './consts';
 export type { IDEntity, IEntity } from './entity';
 export { Entity } from './entity';
 export {
+  CircleOption,
   MessageType,
   OperateType,
   RuleTriggers,

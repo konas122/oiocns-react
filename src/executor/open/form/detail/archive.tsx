@@ -5,6 +5,7 @@ import { Card, Collapse, Timeline } from 'antd';
 import WorkForm from '@/executor/tools/workForm';
 import { InstanceDataModel } from '@/ts/base/model';
 import EntityIcon from '@/components/Common/GlobalComps/entityIcon';
+import { loadWorkStatus } from '@/utils/work';
 
 const { Panel } = Collapse;
 
@@ -32,15 +33,33 @@ const ArchiveItem: React.FC<{ instance: schema.XWorkInstance }> = ({ instance })
   const belong =
     orgCtrl.user.companys.find((a) => a.id == instance.belongId) || orgCtrl.user;
 
+  const getDetail = (id: string, shareId: string, belongId: string) => {
+    return orgCtrl.work.loadInstanceDetail(id, shareId, belongId);
+  };
+
   useEffect(() => {
     setTimeout(async () => {
-      const detail = await orgCtrl.work.loadInstanceDetail(
-        instance.id,
-        instance.belongId,
-      );
+      const detail = instance
+        ? await orgCtrl.work.loadInstanceDetail(
+            instance._id ?? instance.id,
+            instance.shareId,
+            instance.belongId,
+          )
+        : null;
       if (detail) {
-        setTask(detail.tasks);
-        setData(JSON.parse(detail.data || '{}'));
+        setTask(detail.tasks?.filter((i) => i.instanceId === instance._id));
+        const detailItems = detail.tasks?.filter((i) => i.instanceId === instance._id);
+        const item =
+          detailItems!.length > 0
+            ? await getDetail(
+                detailItems![0].instanceId,
+                detailItems![0].shareId,
+                detailItems![0].belongId,
+              ).then((res) => {
+                return res?.data;
+              })
+            : detail.data;
+        setData(JSON.parse(item || '{}'));
       }
     }, 10);
   }, []);
@@ -80,12 +99,19 @@ const ArchiveItem: React.FC<{ instance: schema.XWorkInstance }> = ({ instance })
                         <div style={{ paddingRight: '24px' }}>{item.node?.nodeType}</div>
                         <div style={{ paddingRight: '24px' }}>{item.updateTime}</div>
                         <div style={{ paddingRight: '24px' }}>
-                          审批人：
+                          <div style={{ paddingRight: '24px' }}>{item.title}</div>
+                          审核人：
                           <EntityIcon entityId={record.createUser} showName />
                         </div>
-                        <div>审批结果：{record.status < 200 ? '通过' : '拒绝'}</div>
+                        <div
+                          style={{
+                            paddingRight: '24px',
+                            color: `${record.status < 200 ? '' : 'red'}`,
+                          }}>
+                          审核结果：{loadWorkStatus(record.status).text}
+                        </div>
                         <div>
-                          {record.comment && <div>审批意见：{record.comment}</div>}
+                          {record.comment && <div>审核意见：{record.comment}</div>}
                         </div>
                       </div>
                       <Collapse ghost>
@@ -144,3 +170,4 @@ const ArchiveItem: React.FC<{ instance: schema.XWorkInstance }> = ({ instance })
   );
 };
 export default ThingArchive;
+export { ArchiveItem };

@@ -19,13 +19,14 @@ const PullMember: React.FC<IProps> = ({ current, finished }) => {
   const target = 'standard' in current ? current.target : current;
   if (
     target.id != target.belongId &&
+    target.typeName != TargetType.Group &&
     target.typeName != TargetType.Cohort &&
-    target.typeName != TargetType.Group
+    target.typeName != TargetType.Storage
   ) {
     return (
       <SelectMember
         open
-        members={target.space.members}
+        target={target.space}
         exclude={target.members}
         finished={async (selected) => {
           if (selected.length > 0) {
@@ -54,6 +55,7 @@ const PullMember: React.FC<IProps> = ({ current, finished }) => {
         searchType={
           target.typeName === TargetType.Group ? TargetType.Company : TargetType.Person
         }
+        searchTypes={target.typeName === TargetType.Group ? [TargetType.Company] : target.typeName === TargetType.Storage ? [TargetType.Company, TargetType.Person] : [TargetType.Person]}
       />
     </Modal>
   );

@@ -49,7 +49,7 @@ export default ({ command, mode }: ConfigEnv): UserConfig => {
       },
       proxy: {
         '/orginone': {
-          target: 'https://asset.orginone.cn', // 后台接口
+          target: 'https://orginone.cn', // 后台接口
           changeOrigin: true, // 是否允许跨域
           ws: true,
         },
@@ -99,11 +99,6 @@ export default ({ command, mode }: ConfigEnv): UserConfig => {
               '@wangeditor/editor',
               '@wangeditor/editor-for-react',
             ],
-            'uiw-vendor': [
-              '@uiw/codemirror-extensions-langs',
-              '@uiw/codemirror-theme-vscode',
-              '@uiw/react-codemirror',
-            ],
             'xlsx-vendor': ['xlsx'],
             'play-vendor': ['jol-player'],
             'dev-vendor': ['devextreme-react'],
@@ -129,6 +124,11 @@ export default ({ command, mode }: ConfigEnv): UserConfig => {
     define: {
       // 设置应用信息
       __APP_INFO__: JSON.stringify(__APP_INFO__),
+      // HACK: vite不会处理任何依赖中所需的补丁，例如@babel/types
+      'process.env': {
+        NODE_ENV: 'production',
+      },
+      // Buffer,
     },
   };
 };

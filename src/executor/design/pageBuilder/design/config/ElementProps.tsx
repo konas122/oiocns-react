@@ -1,12 +1,16 @@
 import { $confirm } from '@/utils/react/antd';
-import { Tag, message } from 'antd';
-import React, { useContext, useState } from 'react';
-import { TypeMeta } from '../../core/ElementMeta';
-import { PageElement } from '../../core/PageElement';
-import { DesignContext, PageContext } from '../../render/PageContext';
+import { Tag, Typography, message } from 'antd';
+import React, { ReactNode, useContext, useMemo, useState } from 'react';
+import { TypeMeta } from '@/ts/element/ElementMeta';
+import { PageElement } from '@/ts/element/PageElement';
+import {
+  DesignContext,
+  PageContext,
+} from '../../../../../components/PageElement/render/PageContext';
 import ElementPropsItem from './ElementPropsItem';
 import './index.less';
 import { CloseCircleOutlined } from '@ant-design/icons';
+import { PageElementView } from '@/ts/element/ElementTreeManager';
 
 export async function removeElement(element: PageElement | null, ctx: DesignContext) {
   if (!element) {
@@ -25,7 +29,11 @@ export async function removeElement(element: PageElement | null, ctx: DesignCont
   ctx.view.removeElement(element, true);
 }
 
-export default function ElementProps() {
+interface Props {
+  children?: ReactNode;
+}
+
+export default function ElementProps(props: Props) {
   const ctx = useContext<DesignContext>(PageContext as any);
   const [showProps, setShowProps] = useState(ctx.view.showProps);
   const [element, setElement] = useState<PageElement | null>(ctx.view.currentElement);
@@ -53,10 +61,26 @@ export default function ElementProps() {
       label: 'CSS类名',
     },
     style: {
-      type: 'string',
+      type: 'json',
       label: 'CSS样式',
     },
   };
+
+  const [attachProps, parent] = useMemo<
+    [Dictionary<TypeMeta>, PageElementView | null]
+  >(() => {
+    if (!element) {
+      return [{}, null];
+    }
+    const e = ctx.view.treeManager.allElements[element.id];
+    const parent = ctx.view.treeManager.allElements[e.parentId!];
+    if (!parent) {
+      return [{}, null];
+    }
+
+    const parentMeta = ctx.view.elements.elementMeta[parent.kind] || {};
+    return [parentMeta.attachProps || {}, parent];
+  }, [element]);
 
   if (!element || !showProps) {
     return <></>;
@@ -77,6 +101,7 @@ export default function ElementProps() {
         </div>
       </div>
       <div className="props-content">
+        <Typography.Title level={5}>基本属性</Typography.Title>
         {Object.entries(commonTypeMeta).map(([prop, meta]) => {
           return (
             <ElementPropsItem
@@ -87,6 +112,26 @@ export default function ElementProps() {
             />
           );
         })}
+        {Object.keys(attachProps).length > 0 && parent && (
+          <>
+            <div className="diver"></div>
+            <Typography.Title level={5}>附加属性</Typography.Title>
+            {Object.entries(attachProps).map(([prop, meta]) => {
+              return (
+                <ElementPropsItem
+                  key={'attach_' + prop}
+                  target={element.props}
+                  prop={prop}
+                  meta={meta}
+                  onValueChange={() => {
+                    // 附加属性需要通知父元素
+                    ctx.view.emitter('props', 'change', parent.id);
+                  }}
+                />
+              );
+            })}
+          </>
+        )}
         <div className="diver"></div>
         {Object.entries(meta.props).map(([prop, meta]) => {
           return (
@@ -101,6 +146,7 @@ export default function ElementProps() {
             />
           );
         })}
+        {props.children}
       </div>
     </div>
   );

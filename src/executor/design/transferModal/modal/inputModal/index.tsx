@@ -1,5 +1,6 @@
 import Viewer from '@/components/DataStandard/WorkForm/Viewer';
 import { IForm } from '@/ts/core';
+import FormService from '@/ts/scripting/core/services/FormService';
 import { Modal } from 'antd';
 import React, { useRef } from 'react';
 
@@ -10,6 +11,7 @@ interface IProps {
 
 const InputModal: React.FC<IProps> = ({ current, finished }) => {
   const ref = useRef<any>({});
+  const service = useRef(FormService.fromIForm(current));
   return (
     <Modal
       open
@@ -19,15 +21,7 @@ const InputModal: React.FC<IProps> = ({ current, finished }) => {
       destroyOnClose={true}
       cancelText={'关闭'}
       width={1200}>
-      <Viewer
-        rules={[]}
-        changedFields={[]}
-        data={{}}
-        form={current.metadata}
-        fields={current.fields}
-        belong={current.directory.target.space}
-        onValuesChange={(_, values) => (ref.current = values)}
-      />
+      <Viewer data={ref.current} allowEdit={true} service={service.current} />
     </Modal>
   );
 };

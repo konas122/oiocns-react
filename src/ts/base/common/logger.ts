@@ -22,7 +22,6 @@ class Logger {
     this._callback(LoggerLevel.msg, message);
   }
   warn(message: MessageType): void {
-    console.warn(message);
     this._callback(LoggerLevel.warn, message);
   }
   error(message: MessageType): void {

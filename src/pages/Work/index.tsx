@@ -1,80 +1,77 @@
-import React, { useEffect, useState } from 'react';
-import { IFile, IWork, IWorkTask, TaskStatus, TaskTypeName } from '@/ts/core';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { IFile, IWork, IWorkTask, TaskTypeName } from '@/ts/core';
 import { command } from '@/ts/base';
 import orgCtrl from '@/ts/controller';
-import { Spin, message } from 'antd';
+import { Spin, Image } from 'antd';
 import DirectoryViewer from '@/components/Directory/views';
 import { loadFileMenus } from '@/executor/fileOperate';
-import { cleanMenus } from '@/utils/tools';
+import { cleanMenus, getUuid } from '@/utils/tools';
 import useTimeoutHanlder from '@/hooks/useTimeoutHanlder';
 import AppLayout from '@/components/MainLayout/appLayout';
-import OrgIcons from '@/components/Common/GlobalComps/orgIcons';
 import { useFlagCmdEmitter } from '@/hooks/useCtrlUpdate';
-import { useKeyPress } from 'react-use';
 import SelectWork from './select';
 import FullScreenModal from '@/components/Common/fullScreen';
-import { RiMore2Fill } from 'react-icons/ri';
-import { Theme } from '@/config/theme';
-
+import OrgIcons from '@/components/Common/GlobalComps/orgIcons';
+import message from '@/utils/message';
+import { FormEditData } from '@/ts/base/model';
 /**
  * 办事-事项清单
  */
 const WorkContent: React.FC = () => {
-  const [enabled, setEnabled] = useState(false);
-  const [enable] = useKeyPress((e) => {
-    if (e.altKey && (e.key === 'a' || e.key === 'A')) {
-      setEnabled(true);
-    }
-    if (e.altKey && (e.key === 'q' || e.key === 'Q')) {
-      setEnabled(false);
-    }
-    return true;
-  });
-  const [loaded, setLoaded] = useState(true);
+  const currentTag = useRef<string>('待办');
+  const [loaded, setLoaded] = useState(false);
   const [selectOpen, setSelectOpen] = useState(false);
-  const [currentTag, setCurrentTag] = useState('常用');
   const [content, setContent] = useState<IFile[]>([]);
+  const [viewContent, setViewContent] = useState<IFile[]>([]);
   const [focusFile, setFocusFile] = useState<IFile>();
   const [submitHanlder, clearHanlder] = useTimeoutHanlder();
-  const [, key] = useFlagCmdEmitter('_commons', () => loadContent('常用'));
+  const [todoRefresh, setTodoRefresh] = useState<string>();
+  const [autoApproval, setAutoApproval] = useState(false);
+  const [autoName, setAutoName] = useState('-');
+  const ids: string[] = [];
+  const [, key] = useFlagCmdEmitter('_commons', () => {
+    if (currentTag.current === '常用') {
+      loadContent('常用');
+    }
+  });
   useEffect(() => {
-    const id = orgCtrl.work.notity.subscribe(() => loadContent('待办'));
+    const id = orgCtrl.work.notity.subscribe((...args) => {
+      const [_key, tag] = args;
+      if (tag === undefined || tag === '待办') {
+        if (currentTag.current === '待办') {
+          loadContent('待办');
+        } else {
+          setTodoRefresh(getUuid());
+        }
+      } else if (tag === '草稿' && currentTag.current === tag) {
+        currentTag.current = tag;
+        loadContent(tag);
+      }
+    });
     return () => {
       orgCtrl.work.notity.unsubscribe(id);
+      orgCtrl.work.tiggleAutoApproval(false, [], (msg) => message.info(msg));
     };
   }, []);
 
   useEffect(() => {
-    command.emitter('preview', 'work', focusFile);
-    if (enabled) {
-      if (focusFile && focusFile.typeName == '加用户') {
-        const task = focusFile as IWorkTask;
-        if (task.targets && task.targets.length === 2) {
-          if (task.targets[1].id === '505510232043163648') {
-            setTimeout(
-              (status) => {
-                task.approvalTask(status);
-              },
-              500,
-              task.targets[0].typeName === '人员'
-                ? TaskStatus.RefuseStart
-                : TaskStatus.ApprovalStart,
-            );
-          } else if (task.targets[1].id === '487319397317349376') {
-            setTimeout(
-              (status) => {
-                task.approvalTask(status);
-              },
-              500,
-              task.targets[0].typeName === '人员'
-                ? TaskStatus.ApprovalStart
-                : TaskStatus.RefuseStart,
-            );
-          }
-        }
-      }
+    orgCtrl.work.tiggleAutoApproval(autoApproval, viewContent as IWorkTask[], (msg) =>
+      message.info(msg),
+    );
+  }, [autoApproval, viewContent]);
+
+  useEffect(() => {
+    if (['已办', '抄送', '已发起', '已完结'].includes(currentTag.current)) {
+      loadContent(currentTag.current);
     }
-  }, [focusFile, enabled, enable]);
+  }, [autoName]);
+
+  useEffect(() => {
+    if (!focusFile) {
+      command.emitter('preview', 'guidance', { empty: true, type: currentTag.current });
+    }
+    command.emitter('preview', 'work', focusFile, currentTag.current);
+  }, [focusFile]);
 
   const contextMenu = (file?: IFile) => {
     return {
@@ -86,16 +83,13 @@ const WorkContent: React.FC = () => {
   };
 
   const focusHanlder = (file: IFile | undefined) => {
-    const focused = file && focusFile && file.key === focusFile.key;
-    if (focused) {
-      setFocusFile(undefined);
-    } else {
+    if (file && file.key !== focusFile?.key) {
       setFocusFile(file);
     }
   };
 
   const clickHanlder = (file: IFile | undefined, dblclick: boolean) => {
-    if (dblclick) {
+    if (dblclick && currentTag.current !== '草稿') {
       clearHanlder();
       if (file) {
         command.emitter('executor', 'open', file);
@@ -105,39 +99,100 @@ const WorkContent: React.FC = () => {
     }
   };
 
-  const getBadgeCount = (tag: string) => {
-    if (tag === '待办') {
-      return orgCtrl.work.todos.length;
-    }
-    return 0;
-  };
+  const getBadgeCount = useCallback(
+    (tag: string) => {
+      if (tag === '待办') {
+        return orgCtrl.work.todos.length;
+      }
+      return 0;
+    },
+    [todoRefresh],
+  );
 
   const loadContent = (tag: string) => {
     if (tag?.length < 2) return;
     if (tag === '常用') {
       loadCommons();
+    } else if (tag === '任务') {
+      loadReceptions();
+    } else if (tag === '重载任务') {
+      loadReceptions();
+    } else if (tag === '草稿') {
+      loadDrafts();
     } else {
-      loadTasks(tag);
+      command.emitter('preview', 'guidance', {
+        empty: content.length == 0,
+        loading: true,
+        type: tag,
+      });
+      loadTasks(tag, []);
     }
-    setFocusFile(undefined);
   };
-  const loadTasks = (tag: string) => {
+  const loadCommons = () => {
     setLoaded(false);
+    orgCtrl.loadCommons().then((value) => {
+      setLoaded(true);
+      const data = value.filter((i) => i.typeName === '办事');
+      setContent(data);
+    });
+  };
+
+  const loadDrafts = () => {
+    setLoaded(false);
+    orgCtrl.work.loadDraft(true).then((value) => {
+      setLoaded(true);
+      setContent(value);
+    });
+  };
+  const loadTasks = (tag: string, args: IFile[]) => {
+    setLoaded(false);
+    let reload = false;
+    if (tag === '重载待办') {
+      tag = '待办';
+      reload = true;
+    }
     orgCtrl.work
-      .loadContent(tag as TaskTypeName)
+      .loadContent(
+        tag as TaskTypeName,
+        autoName == '-' ? '' : autoName,
+        args.length,
+        reload,
+      )
       .then((tasks) => {
-        const newTasks = tasks.sort((a, b) => {
+        tasks.forEach((task) => {
+          if (ids.includes(task.taskdata.instanceId)) {
+            task.loadExecutors().then(async (executors) => {
+              const executor = executors.find(
+                (item) =>
+                  item.metadata.funcName == '字段变更' ||
+                  item.metadata.funcName == '任务状态变更',
+              );
+              if (!executor || executor.metadata.funcName === '任务状态变更') {
+                command.emitter('preview', 'work', undefined);
+                if (executor && task.instanceData?.reception) {
+                  const formData = new Map<string, FormEditData>();
+                  await executor.execute(formData);
+                  message.info(task.name + '执行成功！');
+                }
+              }
+            });
+          }
+        });
+        const newTasks = [...args, ...tasks].sort((a, b) => {
           return (
-            new Date(b.taskdata.updateTime).getTime() -
-            new Date(a.taskdata.updateTime).getTime()
+            new Date(b.metadata.updateTime).getTime() -
+            new Date(a.metadata.updateTime).getTime()
           );
         });
-        setCurrentTag(tag);
         setContent([...newTasks]);
-        if (tag === '待办' && newTasks.length > 0) {
-          setFocusFile(newTasks[0]);
-        }
         setLoaded(true);
+        if (tag == '待办') {
+          command.emitter('preview', 'guidance', {
+            empty: newTasks.length == 0,
+            loading: false,
+            type: tag,
+          });
+        }
       })
       .catch((reason) => {
         message.error(reason);
@@ -146,52 +201,107 @@ const WorkContent: React.FC = () => {
       });
   };
 
-  const loadCommons = () => {
+  const loadReceptions = () => {
     setLoaded(false);
-    orgCtrl.loadCommons().then((value) => {
+    orgCtrl.loadReceptions().then((value) => {
+      setContent(value);
       setLoaded(true);
-      setCurrentTag('常用');
-      setContent(value.filter((i) => i.typeName === '办事'));
     });
   };
 
   const renderMore = () => {
-    if (currentTag === '常用') {
-      return (
-        <RiMore2Fill
-          fontSize={22}
-          color={Theme.FocusColor}
-          title={'选择事项'}
-          style={{ cursor: 'pointer' }}
-          onClick={() => {
-            setSelectOpen(true);
-          }}
-        />
-      );
+    switch (currentTag.current) {
+      case '常用':
+        return (
+          <div className="chat-leftBar-search_more">
+            <Image
+              preview={false}
+              height={24}
+              width={24}
+              onClick={() => {
+                setSelectOpen(true);
+              }}
+              src={`/svg/operate/todoMore.svg?v=1.0.1`}
+            />
+          </div>
+        );
+      case '待办':
+        return (
+          <>
+            <div className="chat-leftBar-search_more">
+              <OrgIcons
+                type="/operate/reload"
+                size={22}
+                notAvatar
+                title="重载待办"
+                onClick={() => loadContent('重载待办')}
+              />
+            </div>
+            {autoName.length > 1 && (
+              <div className="chat-leftBar-search_more">
+                <OrgIcons
+                  type={`/operate/${autoApproval ? 'setActive' : 'active'}`}
+                  size={22}
+                  notAvatar
+                  title={`${autoApproval ? '停止自动审核' : '开启自动审核'}`}
+                  onClick={() => setAutoApproval((pre) => !pre)}
+                />
+              </div>
+            )}
+          </>
+        );
+      case '任务':
+        return (
+          <div className="chat-leftBar-search_more">
+            <OrgIcons
+              type="/operate/reload"
+              size={22}
+              notAvatar
+              title="重载任务"
+              onClick={() => loadContent('重载任务')}
+            />
+          </div>
+        );
     }
     return <></>;
   };
-
   return (
     <AppLayout previewFlag={'work'}>
       <Spin spinning={!loaded} tip={'加载中...'}>
-        <div key={key} style={{ marginLeft: 10, padding: 2, fontSize: 16 }}>
-          <OrgIcons work selected />
+        <div key={key} style={{ marginLeft: 10, padding: 2, fontSize: 18 }}>
           <span style={{ paddingLeft: 10 }}>办事</span>
         </div>
         <DirectoryViewer
+          isMenu
           extraTags={false}
-          currentTag={currentTag}
-          height={'calc(100% - 100px)'}
+          currentTag={currentTag.current}
+          height={'calc(100% - 110px)'}
           selectFiles={[]}
           focusFile={focusFile}
           content={content}
           badgeCount={getBadgeCount}
-          tagChanged={(t) => loadContent(t)}
-          initTags={['常用', '待办', '已办', '抄送', '发起的']}
+          tagChanged={(t) => {
+            currentTag.current = t;
+            setAutoApproval(false);
+            loadContent(t);
+          }}
+          initTags={['常用', '草稿', '任务', '待办', '已办', '抄送', '已发起', '已完结']}
           fileOpen={(entity, dblclick) => clickHanlder(entity as IWorkTask, dblclick)}
           contextMenu={(entity) => contextMenu(entity as IWorkTask)}
           rightBars={renderMore()}
+          onScrollEnd={() => {
+            if (['已办', '抄送', '已发起', '已完结'].includes(currentTag.current)) {
+              loadTasks(currentTag.current, content);
+            }
+          }}
+          onFilter={(filter) => {
+            setAutoName(filter);
+            setAutoApproval(false);
+          }}
+          onFocusFile={(file) => {
+            setFocusFile(file as IFile);
+          }}
+          onViewChanged={(files) => setViewContent(files as IFile[])}
         />
         {selectOpen && (
           <FullScreenModal

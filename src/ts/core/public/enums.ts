@@ -17,7 +17,8 @@ export enum TargetType {
   /** 自归属用户 */
   'Person' = '人员',
   'Company' = '单位',
-  'Storage' = '存储资源'
+  'Storage' = '存储资源',
+  'Colleague' = '同事',
 }
 
 /** 分类基础类型 */
@@ -45,14 +46,38 @@ export enum MessageType {
   Recall = '撤回',
   Notify = '通知',
   Forward = '转发',
+  Task = '任务',
+  NameCard = '名片',
+  Dynamic = '群动态',
 }
 
 /** 任务状态 */
 export enum TaskStatus {
   ApplyStart = 0,
+  InApproval = 1,
   ApprovalStart = 100,
   RefuseStart = 200,
+  BackStartStatus = 230,
+  ResetStartStatus = 240,
+  CancelStartStatus = 250,
+  BrotherDownStatus = 251,
+  NodeMissStatus = 252,
+  DefineMissStatus = 253,
+  InstanceMissStatus = 254,
 }
+
+export const TaskStatusZhMap: Record<string, string> = {
+  '0': '已发起',
+  '1': '审核中',
+  '100': '已通过',
+  '200': '已拒绝',
+  '230': '已驳回',
+  '250': '被取消',
+  '240': '被重置',
+  '252': '节点丢失',
+  '253': '定义丢失',
+  '254': '实例丢失',
+};
 
 /** 变更操作 */
 export enum OperateType {
@@ -61,6 +86,7 @@ export enum OperateType {
   'Remove' = '移除',
   'Update' = '更新',
   'Delete' = '删除',
+  'Quit' = '退出',
 }
 
 /** 值类型 */
@@ -73,19 +99,50 @@ export enum ValueType {
   'Time' = '时间型',
   'Date' = '日期型',
   'Target' = '用户型',
-  'Reference' = '引用型'
+  'Reference' = '引用型',
+  'Map' = '地图型',
+  'Object' = '对象型',
+  'Currency' = '货币型',
 }
 
 /** 规则触发时机 */
 export enum RuleTriggers {
-  'Start' = 'Start',//初始化
-  'Running' = 'Running',//修改后
-  'Submit' = 'Submit',//提交前
-  'ThingsChanged' = 'ThingsChanged',//子表变化后
+  'Start' = 'Start', //初始化
+  'Running' = 'Running', //修改后
+  'Submit' = 'Submit', //提交前
+  'ThingsChanged' = 'ThingsChanged', //子表变化后
 }
 
 /** 个人 群组 */
 export enum FromOrigin {
   'Person' = 'Person',
   'Group' = 'Group',
+}
+
+/** 循环条件 */
+export enum CircleOption {
+  'everyDay' = '每天',
+  'everyWeek' = '每周',
+  'everyMounth' = '每月',
+  'everyYear' = '每年',
+}
+
+/** 页面模板类型 */
+export enum TemplateType {
+  // 自由页面模板
+  commonTemplate = 'commonTemplate',
+  // 虚拟商城模板
+  dataTemplate = 'dataTemplate',
+  // 实体商品模板
+  realTemplate = 'realTemplate',
+  // 数据看板模板
+  dashboardTemplate = 'dashboardTemplate',
+}
+
+/** 商城模板展示模式 */
+export enum MallTemplateMode {
+  // 共享
+  sharing = '共享',
+  // 交易
+  trading = '交易',
 }

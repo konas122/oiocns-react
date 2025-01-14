@@ -4,11 +4,14 @@ import { OperateType, TargetType, entityOperates, targetOperates } from '../../p
 import { IBelong } from '../base/belong';
 import { ITarget, Target } from '../base/target';
 import { ISession } from '../../chat/session';
+import { DataManager, IDataManager } from '../../thing/dba';
 
 /** 存储资源接口 */
 export interface IStorage extends ITarget {
   /** 是否处于激活状态 */
   isActivate: boolean;
+  /** 数据库管理接口 */
+  dataManager: IDataManager;
   /** 激活存储 */
   activateStorage(): Promise<boolean>;
 }
@@ -19,9 +22,15 @@ export class Storage extends Target implements IStorage {
       TargetType.Company,
       TargetType.Person,
     ]);
+    this.dataManager = new DataManager(this);
+  }
+  accepts: string[] = ['人员', '单位'];
+  dataManager: IDataManager;
+  get filterTags(): string[] {
+    return ['存储群'];
   }
   get isMyTeam(): boolean {
-    return true;
+    return this.space.hasDataAuth() || this.space.hasRelationAuth(); 
   }
   async exit(): Promise<boolean> {
     if (this.metadata.belongId !== this.space.id) {
@@ -80,9 +89,8 @@ export class Storage extends Target implements IStorage {
   async deepLoad(reload: boolean = false): Promise<void> {
     if (this.hasRelationAuth()) {
       await this.loadIdentitys(reload);
-      this.loadMembers(reload);
-    }
-    this.directory.loadDirectoryResource(reload);
+      await this.directory.loadDirectoryResource(reload);
+    } 
   }
   override async pullMembers(
     members: schema.XTarget[],

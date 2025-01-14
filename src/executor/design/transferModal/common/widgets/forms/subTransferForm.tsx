@@ -1,9 +1,8 @@
+import { MonacoEditor } from '@/components/Common/MonacoEditor';
 import SchemaForm from '@/components/SchemaForm';
 import { model } from '@/ts/base';
 import { ITransfer } from '@/ts/core';
 import { ProFormColumnsType, ProFormInstance } from '@ant-design/pro-components';
-import { javascript } from '@codemirror/lang-javascript';
-import CodeMirror from '@uiw/react-codemirror';
 import { Input, message } from 'antd';
 import React, { useEffect, useRef } from 'react';
 import {
@@ -78,10 +77,9 @@ export const SubTransferForm: React.FC<IProps> = ({ transfer, current, finished 
       colProps: { span: 24 },
       renderFormItem: () => {
         return (
-          <CodeMirror
+          <MonacoEditor
             value={form.current?.getFieldValue('judge')}
-            height={'200px'}
-            extensions={[javascript()]}
+            language="javascript"
             onChange={(code: string) => {
               form.current?.setFieldValue('judge', code);
             }}

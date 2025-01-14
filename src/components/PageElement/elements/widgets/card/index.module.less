@@ -1,0 +1,36 @@
+.listWrapper {
+  height: 65vh;
+  margin-top: 25px;
+  display: flex;
+  flex-direction: column;
+  .listHeader {
+    display: flex;
+    align-items: center;
+    height: 50px;
+    flex-shrink: 0;
+    .button {
+      margin-right: 10px;
+    }
+    .buttonRight {
+      margin-left: auto;
+      margin-right: 5px;
+    }
+  }
+  .listContent {
+    overflow: auto;
+    .orgWrapper {
+      background-color: white;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      .orgInfo {
+        display: flex;
+        align-items: center;
+        height: 50px;
+        .icon {
+          cursor: pointer;
+        }
+      }
+    }
+  }
+}

@@ -1,247 +1,75 @@
-import { common, model, schema } from '@/ts/base';
-import { IBelong } from '@/ts/core';
-import React, { useEffect, useState } from 'react';
-import Toolbar, { Item } from 'devextreme-react/toolbar';
-import FormItem from './formItem';
-import { Emitter, logger } from '@/ts/base/common';
-import { getItemNums } from '../Utils';
-import useStorage from '@/hooks/useStorage';
-import useObjectUpdate from '@/hooks/useObjectUpdate';
 import { EditModal } from '@/executor/tools/editModal';
+import useStorage from '@/hooks/useStorage';
+import { model, schema } from '@/ts/base';
+import FormService from '@/ts/scripting/core/services/FormService';
+import Toolbar, { Item } from 'devextreme-react/toolbar';
+import React, { useEffect, useState } from 'react';
+import { getItemNums } from '../Utils';
+import FormItem from './formItem';
+import _, { cloneDeep } from 'lodash';
+import { Divider } from 'antd';
+import styles from './index.module.less';
 
-const WorkFormViewer: React.FC<{
-  data: any;
-  belong: IBelong;
-  form: schema.XForm;
-  readonly?: boolean;
-  showTitle?: boolean;
-  fields: model.FieldModel[];
-  changedFields: model.MappingData[];
-  rules: model.RenderRule[];
-  formData?: model.FormEditData;
-  onValuesChange?: (fieldId: string, value: any, data: any) => void;
-}> = (props) => {
-  props.data.name = props.form.name;
-  const [key, forceUpdate] = useObjectUpdate(props.rules);
-  const [notifyEmitter] = React.useState(new Emitter());
+interface IWorkFormProps {
+  data: { [key: string]: any };
+  allowEdit: boolean;
+  info?: model.FormInfo;
+  service: FormService;
+}
+
+const WorkFormViewer: React.FC<IWorkFormProps> = (props) => {
   const [colNum, setColNum] = useStorage('workFormColNum', '一列');
-  const onValueChange = (fieldId: string, value: any, refresh: boolean = true) => {
-    const checkHasChanged = (fieldId: string, value: any) => {
-      const oldValue = props.data[fieldId];
-      if (oldValue) {
-        return value != oldValue || value === undefined || value === null;
-      } else {
-        return value !== undefined && value !== null;
-      }
-    };
-    const runRule = (key: string) => {
-      const vaildRule = (rules: any[]): boolean => {
-        var pass: boolean = false;
-        if (rules.includes('and') || rules.includes('or')) {
-          var operate = 'and';
-          var result: boolean[] = [];
-          for (const rule of rules) {
-            if (Array.isArray(rule)) {
-              result.push(vaildRule(rule));
-            } else if (['and', 'or'].includes(rule)) {
-              operate = rule;
-            }
-          }
-          return operate == 'and' ? !result.includes(false) : result.includes(true);
-        } else if (rules.length == 3) {
-          const dataValue = props.data[rules[0].replace('T', '')];
-          if (dataValue) {
-            switch (rules[1]) {
-              case '=':
-                return dataValue == rules[2];
-              case '<>':
-                return dataValue != rules[2];
-              case '>':
-                return dataValue > rules[2];
-              case '>=':
-                return dataValue >= rules[2];
-              case '<':
-                return dataValue < rules[2];
-              case '<=':
-                return dataValue <= rules[2];
-              case 'contains':
-                return `${dataValue}`.includes(rules[2]);
-              case 'notcontains':
-                return !`${dataValue}`.includes(rules[2]);
-              case 'startswith':
-                return `${dataValue}`.startsWith(rules[2]);
-              case 'endswith':
-                return `${dataValue}`.endsWith(rules[2]);
-              case 'isblank':
-                return `${dataValue}`.trim().length == 0;
-              case 'isnotblank':
-                return `${dataValue}`.trim().length > 0;
-              case 'between':
-                if (Array.isArray(rules[2]) && rules[2].length == 2) {
-                  return dataValue > rules[2][0] && dataValue <= rules[2][1];
-                }
-                break;
-              default:
-                break;
-            }
-          }
-        } else if (rules.length == 2) {
-          switch (rules[1]) {
-            case 'isblank':
-              return props.data[rules[0]] == undefined;
-            case 'isnotblank':
-              return props.data[rules[0]] != undefined;
-            default:
-              break;
-          }
-        } else if (rules.length == 1) {
-          return vaildRule(rules[0]);
-        }
-        return pass;
-      };
-      const rules =
-        props.form.rule?.filter((a) => a.trigger.find((s) => s.includes(key))) ?? [];
-      for (const rule of rules) {
-        if ('target' in rule) {
-          const target = props.fields.find((a) => a.id == rule.target);
-          if (target) {
-            switch (rule.type) {
-              case 'show':
-                {
-                  var showRule = rule as model.FormShowRule;
-                  var pass = vaildRule(JSON.parse(showRule.condition));
-                  const oldRule = props.formData?.rules.find(
-                    (a) => a.destId == showRule.target && a.typeName == showRule.showType,
-                  );
-                  if (oldRule) {
-                    let newValue = pass ? showRule.value : !showRule.value;
-                    if (oldRule.value != newValue) {
-                      oldRule.value = pass ? showRule.value : !showRule.value;
-                    }
-                  } else {
-                    props.formData?.rules.push({
-                      formId: props.form.id,
-                      destId: showRule.target,
-                      typeName: showRule.showType,
-                      value: pass ? showRule.value : !showRule.value,
-                    });
-                  }
-                }
-                break;
-              case 'calc':
-                var calcRule = rule as model.FormCalcRule;
-                var formula = calcRule.formula;
-                try {
-                  var isLegal = true;
-                  var runtime: any = {
-                    value: {},
-                    decrypt: common.decrypt,
-                    encrypt: common.encrypt,
-                  };
-                  calcRule.mappingData?.forEach((s) => {
-                    {
-                      const value = props.data[s.id];
-                      if (!value) {
-                        isLegal = false;
-                      }
-                      runtime[s.code] = value;
-                    }
-                  });
-                  for (var i = 0; i < calcRule.trigger.length; i++) {
-                    const triggerData = props.data[calcRule.trigger[i].replace('T', '')];
-                    if (triggerData) {
-                      formula = formula.replaceAll(`@${i}@`, JSON.stringify(triggerData));
-                    } else {
-                      isLegal = false;
-                      break;
-                    }
-                  }
-                  if (!isLegal) {
-                    const defaultValue = props.fields.find((a) => a.id == calcRule.target)
-                      ?.options?.defaultValue;
-                    if (defaultValue) {
-                      props.data[calcRule.target] = defaultValue;
-                    } else {
-                      delete props.data[calcRule.target];
-                    }
-                    return true;
-                  } else {
-                    common.Sandbox('value=' + formula)(runtime);
-                    props.data[calcRule.target] = runtime.value;
-                  }
-                } catch {
-                  logger.error(`计算规则[${formula}]执行失败，请确认是否维护正确!`);
-                }
-                break;
-            }
-          }
-        }
-      }
-      return rules.length > 0;
-    };
-    if (checkHasChanged(fieldId, value)) {
-      if (value === undefined || value === null) {
-        delete props.data[fieldId];
-      } else {
-        props.data[fieldId] = value;
-      }
-      props.onValuesChange?.apply(this, [fieldId, value, props.data]);
-      if (runRule(fieldId) && refresh) {
-        forceUpdate();
-      }
-    }
-  };
+  const [fields, setFields] = useState<(schema.XGroups | model.FieldModel)[]>(
+    props.service.fields,
+  );
   useEffect(() => {
-    if (props.changedFields) {
-      props.changedFields
-        .filter((a) => a.formId == props.form.id)
-        .forEach((s) => {
-          onValueChange(s.id, props.data[s.id], false);
-        });
-      forceUpdate();
+    if (!props.service.fields) return;
+    const attributes: (schema.XGroups | model.FieldModel)[] = cloneDeep(
+      props.service.fields,
+    );
+    if (props.service.form.groups?.length) {
+      props.service.form.groups.forEach((group) => {
+        attributes.splice(group.index, 0, group);
+      });
     }
-  }, [props.changedFields]);
+    setFields(attributes);
+  }, []);
 
   return (
-    <div style={{ padding: 16 }} key={key}>
-      <Toolbar height={60}>
-        <Item
-          location="center"
-          locateInMenu="never"
-          render={() => (
-            <div className="toolbar-label">
-              <b style={{ fontSize: 28 }}>{props.form.name}</b>
-            </div>
-          )}
-        />
+    <div>
+      <Toolbar style={{ marginBottom: '10px' }}>
         <Item
           location="after"
           locateInMenu="never"
           widget="dxButton"
-          visible={!props.readonly && props.form.options?.allowSelect}
+          visible={props.allowEdit && props.info?.allowSelect}
           options={{
             text: '数据选择',
             type: 'default',
             stylingMode: 'outlined',
             onClick: () => {
               EditModal.showFormSelect({
-                form: props.form,
-                fields: props.fields,
-                belong: props.belong,
+                form: props.service.form,
+                fields: props.service.fields,
+                belong: props.service.target,
                 multiple: false,
                 onSave: (values) => {
                   if (values.length > 0) {
-                    Object.keys(props.data).forEach((key) => {
-                      delete props.data[key];
-                    });
-                    Object.assign(props.data, values[0]);
-                    for (const field of props.fields) {
-                      const value = props.data[field.id];
-                      if (value) {
-                        props.onValuesChange?.(field.id, value, props.data);
-                      }
+                    if (props.info?.allowEdit) {
+                      _.assign(
+                        props.data,
+                        _.pick(values[0], [
+                          'id',
+                          'code',
+                          'name',
+                          'chainId',
+                          'belongId',
+                          'createUser',
+                          'createTime',
+                        ]),
+                      );
                     }
-                    forceUpdate();
+                    props.service.setFieldsValue(values[0]);
                   }
                 },
               });
@@ -262,41 +90,58 @@ const WorkFormViewer: React.FC<{
           }}
         />
       </Toolbar>
-      <div style={{ display: 'flex', width: '100%', flexWrap: 'wrap', gap: 10 }}>
+      <div
+        className={styles.dragList}
+        style={{ display: 'flex', width: '100%', flexWrap: 'wrap', gap: 10 }}>
         <FormItem
           key={'name'}
           data={props.data}
           numStr={colNum}
           rules={[]}
-          readOnly={props.readonly}
-          field={{
-            id: 'name',
-            name: '名称',
-            code: 'name',
-            valueType: '描述型',
-            remark: '数据的名称。',
-            options: { hideField: true },
-          }}
-          belong={props.belong}
-          notifyEmitter={notifyEmitter}
-          onValuesChange={onValueChange}
+          readOnly={props.allowEdit}
+          field={
+            {
+              id: 'name',
+              name: '名称',
+              code: 'name',
+              valueType: '描述型',
+              remark: '数据的名称。',
+              options: { hideField: true },
+            } as model.FieldModel
+          }
+          belong={props.service.belong}
+          service={props.service}
         />
-        {props.fields.map((field) => {
-          return (
-            <FormItem
-              key={field.id}
-              data={props.data}
-              numStr={colNum}
-              rules={[...(props.formData?.rules ?? []), ...(props?.rules ?? [])].filter(
-                (a) => a.destId == field.id,
-              )}
-              readOnly={props.readonly}
-              field={field}
-              belong={props.belong}
-              notifyEmitter={notifyEmitter}
-              onValuesChange={onValueChange}
-            />
-          );
+        {fields.map((field) => {
+          if (!('id' in field)) {
+            return (
+              <div className={styles['groups']} key={field.name}>
+                <Divider type="vertical" className={styles['divider']} />
+                <span>{field.name}</span>
+              </div>
+            );
+          } else {
+            return (
+              <FormItem
+                key={field.id}
+                data={props.data}
+                form={props.service.form}
+                numStr={colNum}
+                rules={[
+                  ...(props.service.formData?.rules ?? []),
+                  ...(props.service.work?.model.rules ?? []),
+                ].filter((a) => a.destId == field.id)}
+                readOnly={!props.allowEdit}
+                field={field as model.FieldModel}
+                belong={props.service.belong}
+                service={props.service}
+                onValuesChange={(field, value) => {
+                  props.service.onValueChange(field, value, props.data);
+                }}
+                setFieldsValue={(data) => props.service.setFieldsValue(data)}
+              />
+            );
+          }
         })}
       </div>
     </div>

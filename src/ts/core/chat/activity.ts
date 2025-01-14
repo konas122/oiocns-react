@@ -28,6 +28,8 @@ export interface IActivityMessage extends Emitter {
   like(): Promise<boolean>;
   /** 评论 */
   comment(txt: string, replyTo?: string): Promise<boolean>;
+  /** 取消评论 */
+  unComment(comment: CommentType): Promise<boolean>;
 }
 
 /** 动态消息实现 */
@@ -89,9 +91,11 @@ class ActivityMessage extends Emitter implements IActivityMessage {
       _push_: {
         comments: {
           label,
-          userId: this.activity.userId,
-          time: 'sysdate()',
           replyTo,
+          id: 'snowId()',
+          time: 'sysdate()',
+          designateId: this.activity.userId,
+          userId: this.activity.userId,
         } as CommentType,
       },
     });
@@ -100,6 +104,24 @@ class ActivityMessage extends Emitter implements IActivityMessage {
         data: newData,
         operate: 'update',
       });
+    }
+    return false;
+  }
+  async unComment(comment: CommentType): Promise<boolean> {
+    if (comment.userId === this.activity.userId && comment.id !== undefined) {
+      const newData = await this.activity.coll.update(this.metadata.id, {
+        _pull_: {
+          comments: {
+            id: comment.id,
+          },
+        },
+      });
+      if (newData) {
+        return await this.activity.coll.notity({
+          data: newData,
+          operate: 'update',
+        });
+      }
     }
     return false;
   }
@@ -123,6 +145,7 @@ export interface IActivity extends IEntity<schema.XTarget> {
     typeName: MessageType,
     resources: model.FileItemShare[],
     tags: string[],
+    linkInfo: string,
   ): Promise<boolean>;
   /** 加载动态 */
   load(take?: number): Promise<IActivityMessage[]>;
@@ -186,6 +209,7 @@ export class Activity extends Entity<schema.XTarget> implements IActivity {
     typeName: MessageType,
     resources: model.FileItemShare[],
     tags: string[],
+    linkInfo: string,
   ): Promise<boolean> {
     if (this.allPublish) {
       const data = await this.coll.insert({
@@ -196,6 +220,7 @@ export class Activity extends Entity<schema.XTarget> implements IActivity {
         typeName: typeName,
         likes: [],
         forward: [],
+        linkInfo,
       } as unknown as model.ActivityType);
       if (data) {
         await this.coll.notity({
@@ -293,8 +318,9 @@ export class GroupActivity extends Entity<schema.XTarget> implements IActivity {
     typeName: MessageType,
     resources: model.FileItemShare[],
     tags: string[],
+    linkInfo: string,
   ): Promise<boolean> {
-    return this.session.activity.send(content, typeName, resources, tags);
+    return this.session.activity.send(content, typeName, resources, tags, linkInfo);
   }
   override subscribe(callback: (key: string, ...args: any[]) => void): string {
     this.subActivitys.forEach((activity) => {

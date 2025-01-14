@@ -41,6 +41,7 @@ export class DirContext implements t.Context {
     isRoot: boolean,
   ): Promise<void> {
     for (const dir of parent.children) {
+      await dir.standard.loadDirectorys();
       await dir.standard.loadStandardFiles();
       const dirData: t.DirData = {
         meta: { ...dir.metadata, directoryCode: isRoot ? undefined : parent.code },

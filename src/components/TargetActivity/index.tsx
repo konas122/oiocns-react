@@ -5,8 +5,8 @@ import { IActivity } from '@/ts/core';
 import { ScrollView } from 'devextreme-react';
 import dxScrollView from 'devextreme/ui/scroll_view';
 import ActivityMessage from './ActivityMessage';
+import activityEmptyImg from '/img/empty/noactivity.png';
 import { command } from '@/ts/base';
-
 interface ActivityProps {
   height: number | string;
   activity: IActivity;
@@ -35,7 +35,7 @@ const TargetActivity: React.FC<ActivityProps> = ({ height, activity, title }) =>
     }
     return (
       <div className={cls.emptyList}>
-        <Empty description={false}></Empty>
+        <Empty description={false} image={activityEmptyImg}></Empty>
       </div>
     );
   };
@@ -49,22 +49,19 @@ const TargetActivity: React.FC<ActivityProps> = ({ height, activity, title }) =>
       await component.release(news.length < 10);
     }
   };
-
   return (
     <Card
       bordered={false}
       title={title || '动态'}
       extra={
-        activity.allPublish ? (
+        activity.allPublish && (
           <Button
-            type="link"
             onClick={() => {
               command.emitter('executor', 'pubActivity', activity);
-            }}>
-            发布动态
+            }}
+            type="link">
+            发动态
           </Button>
-        ) : (
-          <></>
         )
       }>
       <ScrollView

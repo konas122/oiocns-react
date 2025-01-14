@@ -1,3 +1,5 @@
+// import { round } from '@/ts/scripting/core/functions/primitive';
+import Decimal from "decimal.js";
 /* eslint-disable no-useless-escape */
 /* eslint-disable no-prototype-builtins */
 /* eslint-disable no-unused-vars */
@@ -87,6 +89,51 @@ const formatDate = (date?: any, fmt?: string) => {
 
   return fmt;
 };
+
+export function getWeek(date: Date): Map<string, string | number> {
+  var one_day = 86400000;
+  var day = date.getDay();
+  // 设置时间为当天的0点
+  date.setHours(0);
+  date.setMinutes(0);
+  date.setSeconds(0);
+  1;
+  date.setMilliseconds(0);
+  var week_start_time = date.getTime() - (day - 1) * one_day;
+  var week_end_time = date.getTime() + (7 - day) * one_day;
+  var last = week_start_time - 2 * 24 * 60 * 60 * 1000;
+  var next = week_end_time + 24 * 60 * 60 * 1000;
+  var tomorrow = date.getTime() + 86400000;
+  var month1: string | number = new Date(week_start_time).getMonth() + 1;
+  var month2: string | number = new Date(week_end_time).getMonth() + 1;
+  var day1: string | number = new Date(week_start_time).getDate();
+  var day2: string | number = new Date(week_end_time).getDate();
+  if (month1 < 10) {
+    month1 = '0' + month1;
+  }
+  if (month2 < 10) {
+    month2 = '0' + month2;
+  }
+  if (day1 < 10) {
+    day1 = '0' + day1;
+  }
+  if (day2 < 10) {
+    day2 = '0' + day2;
+  }
+  var time1 = month1 + '.' + day1;
+  var time2 = month2 + '.' + day2;
+  var map = new Map<string, string | number>();
+  map.set('stime', week_start_time); // 当前周周一零点的毫秒数
+  map.set('etime', week_end_time); // 当前周周日零点的毫秒数
+  map.set('stext', time1); // 当前周 周一的日期 mm.dd 如 03.14
+  map.set('etext', time2); // 当前周周一零点的毫秒数
+  map.set('last', last); // 上一周 周六零点的毫秒数
+  map.set('next', next); // 下一周  周一零点的毫秒数
+  map.set('text', time1 + '-' + time2); // 上一周 周六零点的毫秒数
+  map.set('tomorrow', tomorrow); // 明天 零点的毫秒数
+  return map;
+}
+
 function formatTimeByPattern(val: any) {
   // 2016-05-23 13:58:02.0
   if (val.length > 19) {
@@ -162,6 +209,55 @@ function formatTimeAgo(ms: any) {
   function f(n: any) {
     return n < 10 ? '0' + n : n;
   }
+}
+
+/**
+ * 数字格式化
+ * @param number 要格式化的数字或者字符串形式的数字
+ * @param decimalPlaces 保留小数位，默认2，传入`null`不处理
+ * @param showThousandSeparator 是否显示千分位分隔符
+ * @param asPercentage 是否作为百分比输出（乘以100并增加百分号）
+ * @returns 格式化的数字
+ */
+export function formatNumber(
+  number: string | number | null | undefined,
+  decimalPlaces: number | null = 2,
+  showThousandSeparator = false,
+  asPercentage = false,
+) {
+  if (number === null || number === undefined || number === '') {
+    return '';
+  }
+
+  number = Number(number);
+  if (isNaN(number)) {
+    return 'NaN';
+  }
+
+  if (asPercentage) {
+    number *= 100;
+  }
+
+  let formatted = String(number);
+
+  if (typeof decimalPlaces === 'number') {
+    let t = new Decimal(number);
+    formatted =  t.toFixed(decimalPlaces, Decimal.ROUND_HALF_UP)
+  }
+
+  if (showThousandSeparator) {
+    if (formatted.includes('.')) {
+      formatted = formatted.replace(/\B(?=(\d{3})+(?=\.))/g, ',');
+    } else {
+      formatted = formatted.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+  }
+
+  if (asPercentage) {
+    formatted += '%';
+  }
+
+  return formatted;
 }
 
 /**
@@ -333,6 +429,67 @@ function assignment(oldObj: { [key: string]: any }, newObj: { [key: string]: any
   });
 }
 
+/**
+ * 对象数组中 根据key,进行除重
+ * @param arr 数据源
+ * @param key 过滤凭证
+ */
+function uniqueArrayBy<T>(arr: T[], key: keyof T): T[] {
+  const uniqueValues = new Set<T[keyof T]>();
+  const result: T[] = [];
+
+  for (const item of arr) {
+    const findValue = uniqueValues.has(item[key]);
+    if (!findValue) {
+      uniqueValues.add(item[key]);
+      result.push(item);
+    }
+  }
+  return result;
+}
+
+function isLoadOptions(obj: any): {
+  success: boolean;
+  msg: string;
+} {
+  if (typeof obj !== 'object' || obj === null) {
+    console.log('不是对象', obj);
+    return {
+      success: false,
+      msg: '不是一个对象或空',
+    };
+  }
+  const allowedProperties = [
+    'belongId',
+    'collName',
+    'filter',
+    'group',
+    'options',
+    'userData',
+    'skip',
+    'take',
+    'formId',
+    'requireTotalCount',
+    'isCountQuery',
+    'sort',
+    'extraReations',
+    'isExporting',
+    'clusterId',
+  ];
+
+  for (const key in obj) {
+    if (!allowedProperties.includes(key)) {
+      return {
+        success: false,
+        msg: `查询语句不符合规范。属性${key}是非法的`,
+      };
+    }
+  }
+  return {
+    success: true,
+    msg: '',
+  };
+}
 export {
   assignment,
   ellipsisText,
@@ -345,5 +502,7 @@ export {
   isEmoji,
   isSpecialChar,
   sortObjByKeys,
+  uniqueArrayBy,
   visitTree,
+  isLoadOptions,
 };

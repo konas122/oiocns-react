@@ -1,12 +1,19 @@
 import React from 'react';
-import { IForm } from '@/ts/core';
+import { IForm, IView } from '@/ts/core';
 import FullScreenModal from '@/components/Common/fullScreen';
-import ReportDesign from '@/components/Common/ReportDesign';
+import ReportDesign from '@/components/DataStandard/ReportForm';
+import ReportViewDesign from './reportViewDesign';
+import useAsyncLoad from '@/hooks/useAsyncLoad';
 interface IProps {
-  current: IForm;
+  current: IForm | IView;
   finished: () => void;
 }
 const ReportModal: React.FC<IProps> = ({ current, finished }: IProps) => {
+  const [loaded] = useAsyncLoad(async () => {
+    await current.load();
+  }, []);
+
+  if (!loaded) return <></>;
   return (
     <FullScreenModal
       open
@@ -22,7 +29,11 @@ const ReportModal: React.FC<IProps> = ({ current, finished }: IProps) => {
       title={current.typeName + '管理'}
       footer={[]}
       onCancel={finished}>
-      <ReportDesign current={current}></ReportDesign>
+      {current.typeName === '视图' ? (
+        <ReportViewDesign current={current as IView}></ReportViewDesign>
+      ) : (
+        <ReportDesign current={current as IForm}></ReportDesign>
+      )}
     </FullScreenModal>
   );
 };

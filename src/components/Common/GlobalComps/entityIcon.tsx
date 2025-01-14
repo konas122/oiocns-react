@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
 import { Avatar, Spin } from 'antd';
 import orgCtrl from '@/ts/controller';
 import { ShareIcon } from '@/ts/base/model';
@@ -6,6 +6,9 @@ import { command, parseAvatar, schema } from '@/ts/base';
 import TypeIcon from './typeIcon';
 import useAsyncLoad from '@/hooks/useAsyncLoad';
 import { ImInfo } from 'react-icons/im';
+import { IBelong } from '@/ts/core';
+import { isSnowflakeId } from '@/ts/base/common';
+import { TemplateType } from '@/ts/core/public/enums';
 
 interface teamTypeInfo {
   size?: number;
@@ -13,15 +16,19 @@ interface teamTypeInfo {
   entityId?: string;
   entity?: schema.XEntity;
   typeName?: string;
-  notAvatar?: boolean;
   title?: string;
   showName?: boolean;
-  disInfo?: boolean;
+  showCode?: boolean;
+  disableInfo?: boolean;
   onClick?: (entity?: schema.XEntity) => void;
+  belong?: IBelong;
+  showImInfo?: boolean;
+  tags?: string[];
+  empty?: ReactNode;
 }
 
 interface shareIconInfo extends teamTypeInfo {
-  share?: ShareIcon;
+  share?: ShareIcon & { code?: string };
 }
 
 /** 实体图标 */
@@ -30,36 +37,50 @@ const EntityIcon = (info: teamTypeInfo) => {
     if (info.entity) {
       return info.entity;
     }
-    if (info.entityId) {
+    if (info.entityId && isSnowflakeId(info.entityId)) {
       return orgCtrl.user.findMetadata<schema.XEntity>(info.entityId);
     }
   };
   const entity = getEntity();
-  return (
-    <div className="entityIcon">
-      {entity ? (
+  let typeName = entity?.typeName as string;
+  if (entity?.typeName === '商城模板') {
+    typeName =
+      entity?.template === TemplateType.dataTemplate ? '商城模板-数据' : '商城模板-实体';
+  }
+  const loadIconItem = () => {
+    if (entity) {
+      return (
         <ShareIconItem
           {...info}
           share={{
             name: entity.name,
-            typeName: entity.typeName,
+            typeName,
+            code: entity.code,
             avatar: parseAvatar(entity.icon),
           }}
         />
-      ) : (
-        <ShareIconById {...info} />
-      )}
-    </div>
-  );
+      );
+    } else {
+      return <ShareIconById {...info} />;
+    }
+  };
+
+  return <div className="entityIcon">{loadIconItem()}</div>;
 };
 
 /** 实体ID查找 */
 const ShareIconById = (info: shareIconInfo) => {
   if (info.entityId) {
-    const [loaded, entity] = useAsyncLoad(
-      () => orgCtrl.user.findEntityAsync(info.entityId!),
-      [info.entityId],
-    );
+    const [loaded, entity] = useAsyncLoad(() => {
+      if (info.belong && info.typeName) {
+        return info.belong.resource.findEntityById(
+          info.entityId!,
+          info.typeName,
+          info.entity?.shareId,
+        );
+      }
+      return orgCtrl.user.findEntityAsync(info.entityId!);
+    }, [info.entityId]);
     if (!loaded) {
       return <Spin size="small" delay={10} />;
     }
@@ -70,6 +91,7 @@ const ShareIconById = (info: shareIconInfo) => {
           share={{
             name: entity.name,
             typeName: entity.typeName,
+            code: entity.code,
             avatar: parseAvatar(entity.icon),
           }}
         />
@@ -79,7 +101,7 @@ const ShareIconById = (info: shareIconInfo) => {
   if (info.typeName) {
     return <ShareIconItem {...info} />;
   }
-  return <></>;
+  return info.empty || <></>;
 };
 
 /** 实体图标 */
@@ -87,23 +109,41 @@ export const ShareIconItem = (info: shareIconInfo) => {
   const size = info.size ?? 22;
   const fontSize = size > 14 ? 14 : size;
   const infoMore = () => {
-    if (info.disInfo !== true && info.entity && size > 18) {
+    if (info.disableInfo !== true && info.entity && size > 18) {
       return (
         <span
           style={{
-            position: 'relative',
+            position: 'absolute',
             zIndex: 101,
             fontSize: 12,
-            top: -size / 2,
+            top: '-8px',
+            left: '-9px',
             width: 4,
           }}>
-          <ImInfo
-            color={'#abc'}
-            onClick={(e) => {
-              e.stopPropagation();
-              command.emitter('executor', 'open', info.entity, 'preview');
-            }}
-          />
+          {!info.showImInfo && (
+            <ImInfo
+              color={'#abc'}
+              onClick={(e) => {
+                e.stopPropagation();
+                let typeName = info.entity?.typeName as string;
+                if (info.entity?.typeName === '商城模板') {
+                  typeName =
+                    info.entity?.template === TemplateType.dataTemplate
+                      ? '商城模板-数据'
+                      : '商城模板-实体';
+                }
+                command.emitter(
+                  'executor',
+                  'open',
+                  {
+                    ...info.entity,
+                    typeName,
+                  },
+                  'preview',
+                );
+              }}
+            />
+          )}
         </span>
       );
     }
@@ -113,48 +153,51 @@ export const ShareIconItem = (info: shareIconInfo) => {
     if (info.share.avatar?.thumbnail) {
       return (
         <span
-          style={{ display: 'contents', cursor: 'pointer' }}
+          style={{ display: 'contents', cursor: 'pointer', position: 'relative' }}
           title={info.title ?? ''}
           onClick={() => info.onClick?.apply(this, [info.entity])}>
           {infoMore()}
-          <Avatar
-            size={info.iconSize || size}
-            src={info.share.avatar.thumbnail}
-            className="avatarIcon"
-          />
-          {info.showName && (
-            <strong className="pickupName" style={{ fontSize: fontSize }}>
-              {info.share.name}
-            </strong>
-          )}
+          <div>
+            <Avatar
+              size={info.iconSize || size}
+              src={info.share.avatar.thumbnail}
+              className="avatarIcon"
+            />
+            {info.showName && (
+              <strong className="pickupName" style={{ fontSize: fontSize }}>
+                {info.share.name}
+              </strong>
+            )}
+            {info.showCode && (
+              <strong className="pickupName">({info.share?.code})</strong>
+            )}
+          </div>
         </span>
       );
     } else {
       const icon = (
         <TypeIcon
-          avatar
+          name={info.share.name}
           iconType={info.share.typeName || info.typeName || '其它'}
           size={info.iconSize || size}
         />
       );
-      if (info.notAvatar) {
-        return icon;
-      }
       return (
         <span
-          style={{ display: 'contents', cursor: 'pointer' }}
+          style={{ display: 'flex', cursor: 'pointer' }}
           onClick={() => info.onClick?.apply(this, [info.entity])}>
           {infoMore()}
-          <Avatar
-            size={info.iconSize || size}
-            icon={icon}
-            style={{ background: 'transparent', color: '#606060' }}
-          />
-          {info.showName && (
-            <b className="pickupName" style={{ fontSize: fontSize }}>
-              {info.share.name}
-            </b>
-          )}
+          <div>
+            {icon}
+            {info.showName && (
+              <b className="pickupName" style={{ fontSize: fontSize }}>
+                {info.share.name}
+              </b>
+            )}
+            {info.showCode && (
+              <strong className="pickupName">({info.share?.code})</strong>
+            )}
+          </div>
         </span>
       );
     }
@@ -165,8 +208,9 @@ export const ShareIconItem = (info: shareIconInfo) => {
       title={info.title ?? ''}
       onClick={() => info.onClick?.apply(this, [info.entity])}>
       {infoMore()}
-      <TypeIcon avatar iconType={'其它'} size={size} />
+      <TypeIcon iconType={'其它'} size={size} name={info.entity?.name} />
       {info.showName && <strong className="pickupName">{info.entity?.id}</strong>}
+      {info.showCode && <strong className="pickupName">({info.entity?.code})</strong>}
     </span>
   );
 };

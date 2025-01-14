@@ -7,6 +7,7 @@ import { ITeam } from '../base/team';
 import { targetOperates } from '../../public';
 import { ISession } from '../../chat/session';
 import { IFile } from '../../thing/fileinfo';
+import { IStorage } from './storage';
 
 /** 组织集群接口 */
 export interface IGroup extends ITarget {
@@ -14,6 +15,10 @@ export interface IGroup extends ITarget {
   parent?: IGroup;
   /** 子组织集群 */
   children: IGroup[];
+  /** 激活的数据核 */
+  activated: IStorage | undefined;
+  /** 获取根节点组织集群 */
+  getRootGroup(reload?: boolean): Promise<IGroup | undefined>;
   /** 加载子组织集群 */
   loadChildren(reload?: boolean): Promise<IGroup[]>;
   /** 设立子组织集群 */
@@ -42,15 +47,71 @@ export class Group extends Target implements IGroup {
   children: IGroup[] = [];
   keys: string[];
   relations: string[];
+  accepts: string[] = ['单位'];
   private _childrenLoaded: boolean = false;
+  get filterTags(): string[] {
+    return ['集群'];
+  }
   findChat(id: string): ISession | undefined {
     return this.user.companys.find((i) => i.id === id)?.session;
+  }
+  get activated(): IStorage | undefined {
+    return this.space.storages.find((i) => i.metadata.id === this.metadata.storeId);
   }
   get superior(): IFile {
     return this.parent ?? this.space;
   }
+  get isMyTeam(): boolean {
+    return (
+      this.hasDataAuth() ||
+      this.hasRelationAuth() ||
+      this.space.hasDataAuth() ||
+      this.space.hasRelationAuth()
+    );
+  }
+  async getRootGroup(reload: boolean = false): Promise<IGroup | undefined> {
+    if (this.parent) {
+      return await this.parent.getRootGroup();
+    } else if (reload) {
+      const res = await kernel.queryJoinedTargetById({
+        id: this.id,
+        typeNames: [TargetType.Group],
+        page: {
+          offset: 0,
+          limit: 1,
+          filter: '',
+        },
+      });
+      if (res.success && res.data.result?.length == 1) {
+        if (this.spaceId == res.data.result[0].belongId) {
+          return undefined;
+        }
+        var target = this.space.groups.find((s) =>
+          s.relations.includes(res.data.result[0].id),
+        );
+        if (target) {
+          this.parent = target.targets.find(
+            (a) => a.id == res.data.result[0].id,
+          ) as IGroup;
+          if (this.parent) {
+            this.parent.children.push(this);
+            return undefined;
+          }
+        }
+        this.parent = new Group(
+          this.keys,
+          res.data.result[0],
+          this.relations,
+          this.space,
+        );
+        this.parent.children.push(this);
+        return await this.parent.getRootGroup(true);
+      }
+    }
+    return this;
+  }
   async loadChildren(reload?: boolean | undefined): Promise<IGroup[]> {
-    if (!this._childrenLoaded || reload) {
+    if (this.belongId == this.spaceId && (!this._childrenLoaded || reload)) {
       const res = await kernel.querySubTargetById({
         id: this.id,
         subTypeNames: [TargetType.Group],
@@ -111,7 +172,7 @@ export class Group extends Target implements IGroup {
     return this.children;
   }
   get chats(): ISession[] {
-    return [];
+    return this.targets.map((a) => a.session);
   }
   get targets(): ITarget[] {
     const targets: ITarget[] = [this];
@@ -126,13 +187,14 @@ export class Group extends Target implements IGroup {
   async deepLoad(reload: boolean = false): Promise<void> {
     await Promise.all([this.loadChildren(reload), this.loadIdentitys(reload)]);
     await Promise.all(this.children.map((group) => group.deepLoad(reload)));
-    this.loadMembers(reload);
-    this.directory.loadDirectoryResource(reload);
+    await this.directory.loadDirectoryResource(reload);
   }
   override operates(): model.OperateModel[] {
     const operates = super.operates();
     if (this.hasRelationAuth()) {
       operates.unshift(targetOperates.NewGroup);
+      operates.unshift(targetOperates.GenTree);
+      operates.unshift(targetOperates.TransferBelong);
     }
     return operates;
   }

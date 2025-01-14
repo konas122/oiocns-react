@@ -1,12 +1,13 @@
-import { ProFormColumnsType } from '@ant-design/pro-components';
-import React, { useState } from 'react';
-import { IApplication, IAuthority, IWork } from '@/ts/core';
+import { ProFormColumnsType, ProFormInstance } from '@ant-design/pro-components';
+import React, { useState, useRef } from 'react';
+import { IApplication, IAuthority, IWork, TargetType } from '@/ts/core';
 import { model } from '@/ts/base';
 import SchemaForm from '@/components/SchemaForm';
 import { WorkDefineModel } from '@/ts/base/model';
 import UploadItem from '../../tools/uploadItem';
 import { DefaultOptionType } from 'antd/lib/select';
 import useAsyncLoad from '@/hooks/useAsyncLoad';
+import { generateCodeByInitials } from '@/utils/tools';
 
 interface Iprops {
   formType: string;
@@ -21,6 +22,7 @@ const WorkForm = ({ finished, formType, current }: Iprops) => {
   let title = '';
   const readonly = formType === 'remarkDir';
   let initialValue: any = current.metadata;
+  const formRef = useRef<ProFormInstance>();
   const [treeData, setTreeData] = useState<any[]>([]);
   const [applyAuths, setApplyAuths] = useState<any[]>([]);
   const [loaded] = useAsyncLoad(async () => {
@@ -59,11 +61,20 @@ const WorkForm = ({ finished, formType, current }: Iprops) => {
       ]);
     }
   });
+  const workTypes = ['办事'];
+  if (TargetType.Group == current.directory.target.typeName) {
+    workTypes.push('集群模板');
+  }
   if (!loaded) return <></>;
   switch (formType) {
     case 'newWork':
       title = '新建办事';
-      initialValue = { shareId: current.directory.target.id };
+      initialValue = {
+        shareId: current.directory.target.id,
+        canUrge: true,
+        isPrivate: false,
+        allowInitiate: true,
+      };
       break;
     case 'updateWork':
       title = '更新办事';
@@ -110,7 +121,45 @@ const WorkForm = ({ finished, formType, current }: Iprops) => {
       },
     },
     {
-      title: '选择发起权限',
+      title: '事项类型',
+      dataIndex: 'typeName',
+      valueType: 'select',
+      initialValue: '办事',
+      readonly: readonly,
+      fieldProps: {
+        options: workTypes.map((i) => {
+          return {
+            value: i,
+            label: i,
+          };
+        }),
+      },
+      formItemProps: {
+        rules: [{ required: true, message: '事项类型为必填项' }],
+      },
+    },
+    {
+      title: '发起方式',
+      dataIndex: 'applyType',
+      valueType: 'select',
+      initialValue: '默认',
+      readonly: readonly,
+      fieldProps: {
+        options: [
+          { text: '默认', value: '默认' },
+          { text: '选择', value: '选择' },
+          { text: '列表', value: '列表' },
+          { text: '财务', value: '财务' },
+          { text: '总账', value: '总账' },
+          { text: '组合办事', value: '组合办事' },
+        ],
+      },
+      formItemProps: {
+        rules: [{ required: true, message: '事项类型为必填项' }],
+      },
+    },
+    {
+      title: '设置权限',
       readonly: readonly,
       colProps: { span: 24 },
       dataIndex: 'applyAuths',
@@ -122,9 +171,72 @@ const WorkForm = ({ finished, formType, current }: Iprops) => {
         changeOnSelect: true,
         options: treeData,
         displayRender: (labels: string[]) => labels[labels.length - 1],
-        onSelect: (e) => {
-          console.log(e);
-        },
+      },
+    },
+    {
+      title: '是否允许直接发起',
+      dataIndex: 'allowInitiate',
+      initialValue: false,
+      valueType: 'select',
+      readonly: readonly,
+      fieldProps: {
+        options: [
+          {
+            value: true,
+            label: '允许',
+          },
+          {
+            value: false,
+            label: '不允许',
+          },
+        ],
+      },
+      formItemProps: {
+        rules: [{ required: true, message: '事项类型为必填项' }],
+      },
+    },
+    {
+      title: '是否允许跨流程查看',
+      dataIndex: 'isPrivate',
+      valueType: 'select',
+      initialValue: false,
+      readonly: readonly,
+      fieldProps: {
+        options: [
+          {
+            value: false,
+            label: '允许',
+          },
+          {
+            value: true,
+            label: '不允许',
+          },
+        ],
+      },
+      formItemProps: {
+        rules: [{ required: true, message: '事项类型为必填项' }],
+      },
+    },
+    {
+      title: '是否允许进行催办',
+      dataIndex: 'canUrge',
+      valueType: 'select',
+      initialValue: false,
+      readonly: readonly,
+      fieldProps: {
+        options: [
+          {
+            value: true,
+            label: '允许',
+          },
+          {
+            value: false,
+            label: '不允许',
+          },
+        ],
+      },
+      formItemProps: {
+        rules: [{ required: true, message: '事项类型为必填项' }],
       },
     },
     {
@@ -140,6 +252,7 @@ const WorkForm = ({ finished, formType, current }: Iprops) => {
   ];
   return (
     <SchemaForm<model.WorkDefineModel>
+      formRef={formRef}
       open
       key={'workDefineModal'}
       width={640}
@@ -154,11 +267,16 @@ const WorkForm = ({ finished, formType, current }: Iprops) => {
       rowProps={{
         gutter: [24, 0],
       }}
+      onValuesChange={async (values: any) => {
+        if (Object.keys(values)[0] === 'name') {
+          formRef.current?.setFieldValue('code', generateCodeByInitials(values['name']));
+        }
+      }}
       onFinish={async (values: any) => {
         values.applyAuth = values.applyAuths.at(-1);
         switch (formType) {
           case 'updateWork':
-            await (current as IWork).update(values);
+            await(current as IWork).update({ ...values, node: undefined });
             break;
           case 'newWork':
             await (current as IApplication).createWork(values);

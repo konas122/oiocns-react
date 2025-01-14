@@ -33,6 +33,8 @@ export default class KernelApi {
   private set accessToken(val: string) {
     sessionStorage.setItem('accessToken', val);
   }
+  public recorder: boolean = false;
+  public requestLogs: model.RequestRecord[] = [];
   /**
    * 私有构造方法
    * @param url 远端地址
@@ -94,8 +96,15 @@ export default class KernelApi {
   /** 连接信息 */
   public async onlines(): Promise<model.OnlineSet | undefined> {
     const result = await this._storeHub.invoke('Online');
-    if (result.success && result.data) {
-      return result.data;
+    if (result.success && result.data && Array.isArray(result.data)) {
+      return {
+        users: result.data.filter(
+          (item: model.OnlineInfo) => item.endPointType === 'user',
+        ),
+        storages: result.data.filter(
+          (item: model.OnlineInfo) => item.endPointType === 'data',
+        ),
+      };
     }
   }
   /** 激活存储 */
@@ -480,6 +489,34 @@ export default class KernelApi {
     });
   }
   /**
+   * 切换办事定义版本
+   * @param {model.SwitchWorkDefineModel} params 请求参数
+   * @returns {model.ResultType<boolean>} 请求结果
+   */
+  public async switchWorkDefine(
+    params: model.SwitchWorkDefineModel,
+  ): Promise<model.ResultType<boolean>> {
+    return await this.request({
+      module: 'work',
+      action: 'SwitchWorkDefine',
+      params: params,
+    });
+  }
+  /**
+   * 流程实例校准(针对待办丢失，当前审批节点没有待办的问题)
+   * @param {model.IdModel} params 请求参数(流程实例Id)
+   * @returns {model.ResultType<boolean>} 请求结果
+   */
+  public async correctInstance(
+    params: model.IdModel,
+  ): Promise<model.ResultType<boolean>> {
+    return await this.request({
+      module: 'work',
+      action: 'CorrectInstance',
+      params: params,
+    });
+  }
+  /**
    * 创建办事实例(启动办事)
    * @param {model.WorkInstanceModel} params 请求参数
    * @returns {model.ResultType<schema.XWorkInstance>} 请求结果
@@ -509,11 +546,11 @@ export default class KernelApi {
   }
   /**
    * 删除办事定义
-   * @param {model.IdModel} params 请求参数
+   * @param {model.IdShareModel} params 请求参数
    * @returns {model.ResultType<boolean>} 请求结果
    */
   public async deleteWorkDefine(
-    params: model.IdModel,
+    params: model.IdShareModel,
   ): Promise<model.ResultType<boolean>> {
     return await this.request({
       module: 'work',
@@ -551,11 +588,11 @@ export default class KernelApi {
   }
   /**
    * 查询办事定义
-   * @param {model.IdPageModel} params 请求参数
+   * @param {model.IdShareModel} params 请求参数
    * @returns {model.ResultType<model.PageResult<schema.XWorkDefine>>} 请求结果
    */
   public async queryWorkDefine(
-    params: model.IdPageModel,
+    params: model.IdShareModel,
   ): Promise<model.ResultType<model.PageResult<schema.XWorkDefine>>> {
     return await this.request({
       module: 'work',
@@ -578,12 +615,43 @@ export default class KernelApi {
     });
   }
   /**
+   * 根据审核查询关联的流程实例（子流程任务查看子流程或根据起始节点查询主流程）
+   * @param {model.IdShareModel} params 请求参数
+   * id:审核任务的Id
+   * shareId:审核任务的shareId
+   * @returns {model.ResultType<model.RelationInstanceModel>} 请求结果
+   */
+  public async queryRelationInstance(
+    params: model.IdShareModel,
+  ): Promise<model.ResultType<model.RelationInstanceModel>> {
+    return await this.request({
+      module: 'work',
+      action: 'QueryRelationInstance',
+      params: params,
+    });
+  }
+
+  /**
+   * 待办短信催办(根据流程实例Id催报)
+   * @param {model.IdShareModel} params 请求参数
+   * @returns {model.ResultType<boolean>} 请求结果
+   */
+  public async urgeApproval(
+    params: model.UrgeApprovalModel,
+  ): Promise<model.ResultType<model.RelationInstanceModel>> {
+    return await this.request({
+      module: 'work',
+      action: 'UrgeApproval',
+      params: params,
+    });
+  }
+  /**
    * 查询办事节点
-   * @param {model.IdModel} params 请求参数
+   * @param {model.IdShareModel} params 请求参数
    * @returns {model.ResultType<model.WorkNodeModel>} 请求结果
    */
   public async queryWorkNodes(
-    params: model.IdModel,
+    params: model.IdShareModel,
   ): Promise<model.ResultType<model.WorkNodeModel>> {
     return await this.request({
       module: 'work',
@@ -592,7 +660,7 @@ export default class KernelApi {
     });
   }
   /**
-   * 查询待审批任务、抄送
+   * 查询待审核任务、抄送
    * @param {model.IdModel} params 请求参数
    * @returns {model.ResultType<model.PageResult<schema.XWorkTask>>} 请求结果
    */
@@ -606,7 +674,21 @@ export default class KernelApi {
     });
   }
   /**
-   * 办事节点审批
+   * 查询下一节点信息
+   * @param {model.IdModel} params 请求参数
+   * @returns {model.ResultType<model.PageResult<schema.XWorkTask>>} 请求结果
+   */
+  public async queryNextNodes(
+    params: model.IdModel,
+  ): Promise<model.ResultType<model.PageResult<schema.XWorkNode>>> {
+    return await this.request({
+      module: 'work',
+      action: 'QueryNextNodes',
+      params: params,
+    });
+  }
+  /**
+   * 办事节点审核
    * @param {model.ApprovalTaskReq} params 请求参数
    * @returns {model.ResultType<boolean>} 请求结果
    */
@@ -625,12 +707,14 @@ export default class KernelApi {
    * @returns {schema.XWorkInstance | undefined} 流程实例对象
    */
   public async findInstance(
+    targetId: string,
     belongId: string,
     instanceId: string,
   ): Promise<schema.XWorkInstance | undefined> {
     const res = await this.dataProxy({
       module: 'Collection',
       action: 'Load',
+      targetId,
       belongId,
       params: {
         options: {
@@ -638,17 +722,10 @@ export default class KernelApi {
             id: instanceId,
           },
           limit: 1,
-          lookup: {
-            from: 'work-task',
-            localField: 'id',
-            foreignField: 'instanceId',
-            as: 'tasks',
-          },
         },
         collName: 'work-instance',
       },
       relations: [],
-      flag: '-work-instance-',
     });
     if (res.success && res.data && res.data.data) {
       if (Array.isArray(res.data.data) && res.data.data.length > 0) {
@@ -657,22 +734,53 @@ export default class KernelApi {
     }
   }
   /**
+   * 根据实例ID查询流程实例
+   * @param  过滤参数
+   * @returns {schema.XWorkTask[]} 流程实例对象
+   */
+  public async LoadInstanceTask(
+    targetId: string,
+    belongId: string,
+    instanceId: string,
+  ): Promise<schema.XWorkTask[]> {
+    const res = await this.dataProxy({
+      module: 'Collection',
+      action: 'Load',
+      targetId,
+      belongId,
+      params: {
+        options: {
+          match: {
+            instanceId: instanceId,
+          },
+        },
+        collName: 'work-task',
+      },
+      relations: [],
+    });
+    if (res.success && res.data && res.data.data) {
+      return res.data.data;
+    }
+    return [];
+  }
+  /**
    * 获取对象数据
    * @param {string} belongId 对象所在的归属用户ID
    * @param {string} key 对象名称（eg: rootName.person.name）
    * @returns {model.ResultType<T>} 对象异步结果
    */
   public async diskInfo(
+    targetId: string,
     belongId: string,
     relations: string[],
   ): Promise<model.ResultType<model.DiskInfoType>> {
     return await this.dataProxy({
       module: 'Disk',
       action: 'Info',
+      targetId,
       belongId,
       relations,
       params: {},
-      flag: 'diskInfo',
     });
   }
   /**
@@ -682,6 +790,7 @@ export default class KernelApi {
    * @returns {model.ResultType<T>} 对象异步结果
    */
   public async objectGet<T>(
+    targetId: string,
     belongId: string,
     relations: string[],
     key: string,
@@ -689,7 +798,7 @@ export default class KernelApi {
     return await this.dataProxy({
       module: 'Object',
       action: 'Get',
-      flag: key,
+      targetId,
       belongId,
       relations,
       params: key,
@@ -703,6 +812,7 @@ export default class KernelApi {
    * @returns {model.ResultType<T>} 对象异步结果
    */
   public async objectSet(
+    targetId: string,
     belongId: string,
     relations: string[],
     key: string,
@@ -711,7 +821,7 @@ export default class KernelApi {
     return await this.dataProxy({
       module: 'Object',
       action: 'Set',
-      flag: key,
+      targetId,
       belongId,
       relations,
       params: {
@@ -727,6 +837,7 @@ export default class KernelApi {
    * @returns {model.ResultType<T>} 对象异步结果
    */
   public async objectDelete(
+    targetId: string,
     belongId: string,
     relations: string[],
     key: string,
@@ -734,8 +845,8 @@ export default class KernelApi {
     return await this.dataProxy({
       module: 'Object',
       action: 'Delete',
-      flag: key,
       belongId,
+      targetId,
       relations,
       params: key,
     });
@@ -748,6 +859,7 @@ export default class KernelApi {
    * @returns {model.ResultType<T>} 对象异步结果
    */
   public async collectionInsert<T>(
+    targetId: string,
     belongId: string,
     relations: string[],
     collName: string,
@@ -757,10 +869,10 @@ export default class KernelApi {
     return await this.dataProxy({
       module: 'Collection',
       action: 'Insert',
+      targetId,
       belongId,
       copyId,
       relations,
-      flag: collName,
       params: { collName, data },
     });
   }
@@ -772,6 +884,7 @@ export default class KernelApi {
    * @returns {model.ResultType<T>} 对象异步结果
    */
   public async collectionSetFields<T>(
+    targetId: string,
     belongId: string,
     relations: string[],
     collName: string,
@@ -781,10 +894,10 @@ export default class KernelApi {
     return await this.dataProxy({
       module: 'Collection',
       action: 'SetFields',
+      targetId,
       belongId,
       copyId,
       relations,
-      flag: collName,
       params: { collName, collSet },
     });
   }
@@ -796,6 +909,7 @@ export default class KernelApi {
    * @returns {model.ResultType<T>} 对象异步结果
    */
   public async collectionReplace<T>(
+    targetId: string,
     belongId: string,
     relations: string[],
     collName: string,
@@ -805,10 +919,10 @@ export default class KernelApi {
     return await this.dataProxy({
       module: 'Collection',
       action: 'Replace',
+      targetId,
       belongId,
       copyId,
       relations,
-      flag: collName,
       params: { collName, replace },
     });
   }
@@ -820,6 +934,7 @@ export default class KernelApi {
    * @returns {model.ResultType<T>} 对象异步结果
    */
   public async collectionUpdate(
+    targetId: string,
     belongId: string,
     relations: string[],
     collName: string,
@@ -830,9 +945,9 @@ export default class KernelApi {
       module: 'Collection',
       action: 'Update',
       belongId,
+      targetId,
       copyId,
       relations,
-      flag: collName,
       params: { collName, update },
     });
   }
@@ -844,6 +959,7 @@ export default class KernelApi {
    * @returns {model.ResultType<T>} 对象异步结果
    */
   public async collectionRemove(
+    targetId: string,
     belongId: string,
     relations: string[],
     collName: string,
@@ -854,9 +970,9 @@ export default class KernelApi {
       module: 'Collection',
       action: 'Remove',
       belongId,
+      targetId,
       copyId,
       relations,
-      flag: collName,
       params: { collName, match },
     });
   }
@@ -866,6 +982,7 @@ export default class KernelApi {
    * @returns {model.ResultType<T>} 移除异步结果
    */
   public async collectionLoad<T>(
+    targetId: string,
     belongId: string,
     relations: string[],
     collName: string,
@@ -876,14 +993,33 @@ export default class KernelApi {
       module: 'Collection',
       action: 'Load',
       belongId,
+      targetId,
       params: {
         ...options,
         collName: collName,
       },
       relations,
-      flag: `-${collName}`,
     });
     return { ...res, ...res.data };
+  }
+  /**
+   * 查询所有数据集
+   * @param  过滤参数
+   * @returns {model.ResultType<T>} 移除异步结果
+   */
+  public async collectionList<T>(
+    targetId: string,
+    belongId: string,
+    relations: string[],
+  ): Promise<model.ResultType<T>> {
+    return await this.dataProxy({
+      module: 'Collection',
+      action: 'List',
+      targetId,
+      belongId,
+      params: {},
+      relations,
+    });
   }
   /**
    * 从数据集查询数据
@@ -893,18 +1029,42 @@ export default class KernelApi {
    * @returns {model.ResultType<T>} 对象异步结果
    */
   public async collectionAggregate(
+    targetId: string,
     belongId: string,
     relations: string[],
     collName: string,
     options: any,
+    filter?: any,
   ): Promise<model.ResultType<any>> {
     return await this.dataProxy({
       module: 'Collection',
       action: 'Aggregate',
-      flag: collName,
       belongId,
+      targetId,
       relations,
-      params: { collName, options },
+      params: { collName, filter, options },
+    });
+  }
+  /**
+   * 从数据集汇总数据
+   * @param {string} collName 数据集名称（eg: history-message）
+   * @param {any} options 聚合管道(eg: {match:{a:1},skip:10,limit:10})
+   * @param {string} belongId 对象所在的归属用户ID
+   * @returns {model.ResultType<T>} 对象异步结果
+   */
+  public async collectionSummary(
+    targetId: string,
+    belongId: string,
+    relations: string[],
+    options: model.SummaryOptions,
+  ): Promise<model.ResultType<any>> {
+    return await this.dataProxy({
+      module: 'Collection',
+      action: 'Summary',
+      belongId,
+      targetId,
+      relations,
+      params: options,
     });
   }
   /**
@@ -912,17 +1072,18 @@ export default class KernelApi {
    * @param data 操作携带的数据
    * @returns {ResultType<T>} 移除异步结果
    */
-  public async bucketOpreate<T>(
+  public async bucketOperate<T>(
+    targetId: string,
     belongId: string,
     relations: string[],
-    data: model.BucketOpreateModel,
+    data: model.BucketOperateModel,
   ): Promise<model.ResultType<T>> {
     return await this.dataProxy({
       module: 'Bucket',
       action: 'Operate',
       belongId,
+      targetId,
       relations,
-      flag: 'bucketOpreate',
       params: data,
     });
   }
@@ -932,6 +1093,7 @@ export default class KernelApi {
    * @returns {model.LoadResult<T>} 移除异步结果
    */
   public async loadThing(
+    targetId: string,
     belongId: string,
     relations: string[],
     options: any,
@@ -941,8 +1103,8 @@ export default class KernelApi {
       module: 'Thing',
       action: 'Load',
       belongId,
+      targetId,
       relations,
-      flag: 'loadThing',
       params: options,
     });
     const result: model.LoadResult<any> = { ...res, ...res.data };
@@ -952,22 +1114,66 @@ export default class KernelApi {
     return result;
   }
   /**
+   * 折旧
+   * @param  过滤参数
+   */
+  public async depreciationThing(
+    belongId: string,
+    relations: string[],
+    params: { id: string; type: string },
+  ): Promise<model.ResultType<schema.XOperationLog>> {
+    return await this.dataProxy({
+      module: 'Thing',
+      action: 'Depreciation',
+      belongId,
+      relations,
+      targetId: belongId,
+      params: params,
+    });
+  }
+  /**
+   * 物的快照
+   * @param  过滤参数
+   */
+  public async snapshotThing(
+    belongId: string,
+    relations: string[],
+    options: {
+      collName: string;
+      dataPeriod: string;
+    },
+  ): Promise<model.ResultType<void>> {
+    return await this.dataProxy({
+      module: 'Thing',
+      action: 'Snapshot',
+      belongId,
+      relations,
+      targetId: belongId,
+      params: options,
+    });
+  }
+
+  /**
    * 创建物
    * @param name 物的名称
-   * @returns {model.ResultType<schema.XThing>} 移除异步结果
+   * @returns {model.ResultType<schema.XThing[]>} 移除异步结果
    */
   public async createThing(
     belongId: string,
     relations: string[],
     name: string,
-  ): Promise<model.ResultType<schema.XThing>> {
+    count: number = 1,
+  ): Promise<model.ResultType<schema.XThing[]>> {
     return await this.dataProxy({
       module: 'Thing',
       action: 'Create',
-      flag: 'createThing',
       belongId,
       relations,
-      params: name,
+      params: {
+        name,
+        count,
+      },
+      targetId: belongId,
     });
   }
   /**
@@ -1018,14 +1224,24 @@ export default class KernelApi {
   /**
    * 请求一个数据核方法
    * @param {ReqestType} reqs 请求体
+   * @param {string} reqDes 请求描述
    * @returns 异步结果
    */
   public async dataProxy(req: model.DataProxyType): Promise<model.ResultType<any>> {
-    return await this._storeHub.invoke('DataProxy', req);
+    const res = await this._storeHub.invoke('DataProxy', req);
+    if (res.success !== true) {
+      this.requestLogs.unshift({
+        req: req,
+        res: res,
+        date: new Date(),
+      });
+    }
+    return res;
   }
   /**
    * 数据变更通知
    * @param {ReqestType} reqs 请求体
+   * @param {string} reqDes 请求描述
    * @returns 异步结果
    */
   public async dataNotify(req: model.DataNotityType): Promise<model.ResultType<boolean>> {
@@ -1037,6 +1253,7 @@ export default class KernelApi {
   /**
    * 请求一个内核方法
    * @param {ReqestType} reqs 请求体
+   * @param {string} reqDes 请求描述
    * @returns 异步结果
    */
   public async request(req: model.ReqestType): Promise<model.ResultType<any>> {
@@ -1109,6 +1326,13 @@ export default class KernelApi {
     }
     this._methods[methodName].push(newOperation);
   }
+  /**
+   * 生成临时令牌
+   */
+   public async createTemporaryToken() {
+    return await this._storeHub.invoke('createTemporaryToken')
+   }
+
   /** 接收服务端消息 */
   private _receive(res: model.ReceiveType) {
     switch (res.target) {

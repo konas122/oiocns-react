@@ -1,14 +1,15 @@
-import { IDirectory } from '@/ts/core';
-import { DirectoryHandler, DirectorySheet } from '../sheets/directory';
-import { AttrHandler, AttrSheet, FormHandler, FormSheet } from '../sheets/template/form';
-import { PropHandler, PropSheet } from '../sheets/standard/property';
-import { ClassifySheet, DictSheet, SpeciesHandler } from '../sheets/standard/species';
+import { DirectoryHandler, DirectorySheet } from './directory';
+import { AttrHandler, AttrSheet, FormHandler, FormSheet } from './template/form';
+import { PropHandler, PropSheet } from './standard/property';
+import { ClassifySheet, DictSheet, SpeciesHandler } from './standard/species';
 import {
   ClassifyItemHandler,
   ClassifyItemSheet,
   DictItemHandler,
   DictItemSheet,
-} from '../sheets/standard/speciesitem';
+} from './standard/speciesitem';
+import { AnyHandler, AnySheet } from './anything';
+import { schema, model, IDirectory } from '..';
 
 export const getStandardSheets = (directory: IDirectory) => {
   return [
@@ -26,6 +27,31 @@ export const getBusinessSheets = (directory: IDirectory) => {
     new DirectoryHandler(new DirectorySheet(directory)),
     new FormHandler(new FormSheet(directory)),
     new AttrHandler(new AttrSheet(directory)),
+  ];
+};
+
+export const getAnythingSheets = (
+  form: schema.XForm,
+  fields: model.FieldModel[],
+  character: string,
+): AnyHandler[] => {
+  return [
+    new AnyHandler(
+      new AnySheet(
+        form.id,
+        form.name,
+        fields.map((item) => {
+          return {
+            title: item.name,
+            dataIndex: item[character],
+            valueType: item.valueType,
+            lookups: item.lookups,
+            widget: item.widget,
+            options: item.options,
+          };
+        }),
+      ),
+    ),
   ];
 };
 

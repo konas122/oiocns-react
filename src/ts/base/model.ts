@@ -1,4 +1,6 @@
+import { schema } from '@/utils/excel';
 import { model } from '.';
+import { WithChildren } from './common/tree';
 import {
   XApplication,
   XAttributeProps,
@@ -12,7 +14,20 @@ import {
   XStandard,
   XTarget,
   XThing,
+  XTagFilter,
+  XSequence,
+  XReception,
+  XReportTreeNode,
+  XPrint,
+  XReportTaskTreeNode,
+  XDocumentTemplate,
+  XWorkInstance,
+  XWorkDefine,
+  XValidation,
+  XReport,
 } from './schema';
+import { NodeType as ReportTreeNodeType } from './enum';
+import { IIdentity } from '../core';
 // 请求类型定义
 export type ReqestType = {
   // 模块
@@ -22,14 +37,20 @@ export type ReqestType = {
   // 参数
   params: any;
 };
+// 请求记录
+export type RequestRecord = {
+  req: DataProxyType;
+  res: ResultType<any>;
+  date: Date;
+};
 // 请求数据核类型定义
 export type DataProxyType = {
-  // 标签
-  flag: string;
   // 模块
   module: string;
   // 方法
   action: string;
+  // 群Id
+  targetId: string;
   // 归属
   belongId: string;
   // 抄送
@@ -43,8 +64,10 @@ export type DataProxyType = {
 export type DataNotityType = {
   // 数据
   data: any;
-  // 通知的用户
+  // 通知的对象
   targetId: string;
+  // 通知的对象类型
+  targetType: string;
   // 被操作方Id
   subTargetId?: string;
   // 是否忽略自己
@@ -141,7 +164,9 @@ export type OnlineInfo = {
   // 认证时间
   authTime: string;
   // 请求次数
-  requestCount: number;
+  requestCount: string;
+  // 连接数
+  connectionNum: string;
   // 终端类型
   endPointType: string;
 };
@@ -162,6 +187,19 @@ export type PageResult<T> = {
   total: number;
   // 结果
   result: T[];
+};
+
+export type NoticeModel = {
+  // 动态密码Id
+  shareId: string;
+  // 动态密码Id
+  authId: string;
+  // 账户(手机号)
+  data: string;
+  // 账户(手机号)
+  type: string;
+  // 平台入口
+  platName: string;
 };
 
 export type DynamicCodeModel = {
@@ -236,6 +274,13 @@ export type IdPair = {
   value: string;
 };
 
+export type IdShareModel = {
+  // 唯一ID
+  id: string;
+  // 共享组织
+  shareId: string;
+};
+
 export type PageModel = {
   // 偏移量
   offset: number;
@@ -253,6 +298,17 @@ export type IdModel = {
 export type IdPageModel = {
   // 唯一ID
   id: string;
+  // 分页
+  page: PageModel | undefined;
+};
+
+export type IdBelongPageModel = {
+  // 唯一ID
+  id: string;
+  // 归属组织ID
+  belongId: string;
+  // 共享组织ID
+  shareId: string;
   // 分页
   page: PageModel | undefined;
 };
@@ -325,6 +381,8 @@ export type IdentityModel = {
   shareId: string;
   // 备注
   remark: string;
+  // 拉入的人员
+  givenTargets: XTarget[] | undefined;
 };
 
 export type TargetModel = {
@@ -348,6 +406,8 @@ export type TargetModel = {
   teamName: string;
   // 团队代号
   teamCode: string;
+  // 数据核
+  storeId?: string;
 };
 
 export type GiveModel = {
@@ -421,6 +481,8 @@ export type MsgTagModel = {
 };
 
 export type ChatMessageType = {
+  // 代表组织Id
+  designateId: string;
   // 发起方Id
   fromId: string;
   // 接收方Id
@@ -429,18 +491,23 @@ export type ChatMessageType = {
   typeName: string;
   // 内容
   content: string;
+  // 标签
+  tags: string[];
   // 评注
   comments: CommentType[];
 } & Xbase;
 
 export type CommentType = {
   // 标签名称
+  id: string;
+  // 标签名称
   label: string;
   // 人员Id
   userId: string;
   // 时间
   time: string;
-
+  // 代表组织Id
+  designateId: string;
   // 回复某个人
   replyTo?: string;
 };
@@ -616,6 +683,8 @@ export type GetDirectoryModel = {
 export type WorkDefineModel = {
   // 流程ID
   id: string;
+  // 主Id
+  primaryId: string;
   // 流程名称
   name: string;
   // 流程编号
@@ -626,15 +695,46 @@ export type WorkDefineModel = {
   remark: string;
   // 共享组织ID
   shareId: string;
+  // 归属组织ID
+  belongId: string;
+  // 允许补充办事
+  hasGateway: boolean;
+  // 是否私有，不允许跨流程查看
+  isPrivate: boolean;
+  // 折旧计提后是否锁住不允许发起
+  isDepreciationLock: boolean;
+  // 是否允许短信催办
+  canUrge: boolean;
   // 应用ID
   applicationId: string;
   // 发起权限
   applyAuth: string;
+  // 办事打开类型
+  applyType: string;
+  // 是否允许直接办事
+  allowInitiate: boolean;
+  // 来源Id
+  sourceId: string | undefined;
   // 流程节点
-  resource: WorkNodeModel | undefined;
+  node: WorkNodeModel | undefined;
+  // 更新时间
+  updateTime: string;
+};
+
+export type SwitchWorkDefineModel = {
+  // 目标版本Id
+  id: string;
+  // 共享组织Id
+  shareId: string;
+  // 应用Id
+  applicationId: string;
+  // 主Id
+  primaryId: string;
 };
 
 export type WorkInstanceModel = {
+  // 流程实例Id
+  id: string;
   // 流程定义Id
   defineId: string;
   // 展示内容
@@ -651,15 +751,19 @@ export type WorkInstanceModel = {
   taskId: string;
   // 发起用户ID
   applyId: string;
+  // 办事组织ID
+  shareId: string;
+  // 集群模板 起始集群
+  groupId: string;
   // 网关节点信息
   gateways: string;
 };
 
 export type WorkGatewayInfoModel = {
-  // 网关节点ID
+  // 节点ID
   nodeId: string;
-  // 关联组织ID
-  TargetId: string;
+  // 对象Id集合
+  targetIds: string[];
 };
 
 export type InstanceDataModel = {
@@ -681,15 +785,31 @@ export type InstanceDataModel = {
     [id: string]: any;
   };
   rules: model.RenderRule[];
+  /** 接收任务的信息 */
+  reception?: XReception;
+  /** 强审说明 */
+  validation?: XValidation[];
+  // 记录被更改数据
+  changeItems?: string[];
 };
 
+interface XLookup extends FiledLookup {
+  instance?: IIdentity;
+}
+
 export type FieldModel = {
+  /** 允许通过索引签名读取 */
+  [key: string]: any;
   /** 标识(特性标识) */
   id: string;
+  /** 属性id */
+  propId: string;
   /** 名称(特性名称) */
   name: string;
   /** 代码(属性代码) */
   code: string;
+  /** 代码(原始特性代码) */
+  info?: string;
   /** 类型(属性类型) */
   valueType: string;
   /** 规则(特性规则) */
@@ -701,14 +821,135 @@ export type FieldModel = {
   /** 备注(特性描述) */
   remark: string;
   /** 字典(字典项/分类项) */
-  lookups?: FiledLookup[];
+  lookups?: XLookup[];
   /** 计量单位 */
   unit?: string;
+  /** 是否可记录 */
+  isChangeTarget?: boolean;
+  /** 是否变更源 */
+  isChangeSource?: boolean;
+  /** 是否可拆分或合并 */
+  isCombination?: boolean;
+  // 关联的分类ID
+  speciesId?: string;
+  /** 自由节点默认角色值 */
+  defaultRoleIds?: string[];
+};
+export type HomeConfig = {
+  tops: string[];
 };
 
+export type itemsProps = {
+  //保存的单行表格数据
+  data: {
+    //数据区域
+    type: any; //数据区域类型（必填）
+    data: [
+      {
+        name?: any; //数据区域名称（选填）
+        style?: object; //数据区域样式（选填）
+        text?: [
+          {
+            name: string;
+            style: object;
+            dataSource: boolean;
+          },
+        ];
+        dataSource: boolean;
+        colNumber: number;
+      },
+    ]; //空单元格数据
+    emptydata?: [
+      {
+        name: string;
+      },
+    ]; //空单元格
+  };
+};
+export type qrcodeType = {
+  style: any;
+};
+export type itemsTable = {
+  style?: object;
+  title: {
+    name: string;
+    style: object;
+    flag: boolean;
+  };
+  data: itemsProps[];
+  footer: {
+    name: string;
+    style: object;
+    flag: boolean;
+    dataSource: boolean;
+    text?: [
+      {
+        name: string;
+        style: object;
+        dataSource: boolean;
+      },
+    ];
+  };
+  subtitle: {
+    name: string;
+    style: object;
+    flag: boolean;
+    dataSource: boolean;
+    text?: [
+      {
+        name: string;
+        style: object;
+        dataSource: boolean;
+      },
+    ];
+  };
+  qrcode?: qrcodeType[];
+};
+export type TableModel = {
+  style?: object;
+  title: {
+    name: string;
+    style: object;
+    flag: boolean;
+  };
+  data: itemsProps[];
+  footer: {
+    name: string;
+    style: object;
+    flag: boolean;
+    dataSource: boolean;
+    text?: [
+      {
+        name: string;
+        style: object;
+        dataSource: boolean;
+      },
+    ];
+  };
+  subtitle: {
+    name: string;
+    style: object;
+    flag: boolean;
+    dataSource: boolean;
+    text?: [
+      {
+        name: string;
+        style: object;
+        dataSource: boolean;
+      },
+    ];
+  };
+  qrcode?: qrcodeType[];
+};
 export type FiledLookup = {
+  /** 关联人员id */
+  relevanceId?: string;
   /** 唯一标识(项标识) */
   id: string;
+  /** 代码 */
+  code: string;
+  /** 分类项值 */
+  info: string;
   /** 描述(项名称) */
   text: string;
   /** 值(项代码) */
@@ -728,6 +969,8 @@ export type FormEditData = {
   nodeId: string;
   /** 表单名称 */
   formName: string;
+  /** 表单代码 */
+  formCode?: string;
   /** 操作人 */
   creator: string;
   /** 操作时间 */
@@ -736,27 +979,63 @@ export type FormEditData = {
   rules: RenderRule[];
 };
 
+interface WorkNodeForm {
+  name: string;
+  id: string;
+  metadata: XForm;
+}
+
+export interface WorkNodeButton {
+  code: string;
+  name: string;
+  type: 'rule' | 'executor' | 'getWorkData';
+  icon?: string;
+  /** 按钮排序 */
+  order?: number;
+  /** 代码或者校验规则ID */
+  ruleId?: string;
+  /** 执行器ID */
+  executorId?: string;
+  /** 业务场景 */
+  scene?: string;
+  /** 绑定的表单 */
+  form?: WorkNodeForm;
+  /** 执行器的值 */
+  fieldChanges?: FieldChange[];
+}
+
 /* 节点网关 */
 export type WorkGatewayModel = {
   // 网关节点ID
-  nodeId: string;
+  primaryId: string;
   // 关联组织ID
-  targetId: string;
+  memberId: string;
   // 关联流程ID
   defineId: string;
   // 通知的角色ID
   identityId: string;
+  // 关联流程名称
+  defineName: string;
+  // 流程共享组织ID
+  defineShareId: string;
+  // 节点共享组织ID
+  shareId: string;
 };
 
 /* 节点网关 */
 export type GetWorkGatewaysModel = {
   // 流程ID
   defineId: string;
+  // 流程共享组织
+  shareId: string;
   // 组织ID
   targetId: string;
 };
+
 export type WorkNodeModel = {
   id: string;
+  // 主Id
+  primaryId: string;
   // 节点编号
   code: string;
   // 节点类型
@@ -767,14 +1046,16 @@ export type WorkNodeModel = {
   children: WorkNodeModel | undefined;
   // 节点分支
   branches: Branche[] | undefined;
-  // 节点审批数量
+  // 节点审核数量
   num: number;
-  // 节点审批目标类型
+  // 节点审核目标类型
   destType: string;
-  // 节点审批目标Id
+  // 节点审核目标Id
   destId: string;
   // 节点目标名称
   destName: string;
+  // 节点目标共享组织Id
+  destShareId: string;
   // 节点归属组织
   belongId: string;
   // 节点归属定义Id
@@ -782,41 +1063,196 @@ export type WorkNodeModel = {
   // 资源
   resource: string;
   // 关联表单信息
-  forms: FormInfo[];
-  // 关联表单信息
   formRules: Rule[];
+  // 拆分规则
+  splitRules: Rule[];
   // 执行器
   executors: Executor[];
+  // 关联表单信息
+  forms: FormInfo[];
   // 主表
-  primaryForms: XForm[];
+  primaryForms: (XForm | XReport)[];
   // 子表
   detailForms: XForm[];
+  // 编码
+  encodes: Encode[];
+  //打印的html数据
+  print: { id: string; name: string }[];
+  //打印的数据源数据
+  printData: { attributes: any[]; type: string };
+  //审核的权限
+  authoritys: (XAuthority & { count: number })[];
+  // 汇流网关是否包含单位级
+  containCompany: boolean;
+  /** 自定义按钮 */
+  buttons?: WorkNodeButton[];
+  // 商城订单同步规则
+  mallOrderSyncRules?: {
+    [x: string]: any;
+  };
+  /** 默认选择角色 */
+  defaultRoleIds?: string[];
+} & IDocumentConfigHost;
+
+export interface IDocumentConfigHost {
+  documentConfig: WorkDocumentConfig;
+}
+
+export type RelationInstanceModel = {
+  // 流程实例
+  instance: XWorkInstance;
+  // 流程定义
+  define: XWorkDefine & { node: WorkNodeModel };
 };
 
-type FormInfo = {
+export type UrgeApprovalModel = {
+  // 流程实例Id
+  instanceId: string;
+  // 平台名称
+  platName: string;
+  // 催办人员id
+  targetIds: string[];
+  // 催办短信内容
+  message: string;
+};
+
+export interface DocumentPropertyMapping {
+  propId: string;
+  formId: string;
+}
+export interface DocumentNodeMapping {
+  nodeId: string;
+  nodeKey: string;
+}
+
+export interface WorkDocumentConfig {
+  propMapping: {
+    [templateId: string]: DocumentPropertyMapping[];
+  };
+  nodeMapping?: {
+    [templateId: string]: DocumentNodeMapping[];
+  };
+  templates: XDocumentTemplate[];
+}
+
+export type FormInfo = {
   // 表单Id
   id: string;
   // 类型
   typeName: string;
+  // 允许新增
+  allowAdd: boolean;
+  // 允许编辑
+  allowEdit: boolean;
+  // 允许选择
+  allowSelect: boolean;
+  // 自动带出数据
+  autoFill?: boolean;
+  // 允许选择文件
+  allowSelectFile?: boolean;
+  // 选择单位空间
+  selectBelong?: boolean;
+  // 允许新生成
+  allowGenerate?: boolean;
+  // 关闭业务锁
+  closeLock?: boolean;
+  // 仅显示变更数据
+  allowShowChangeData?: boolean;
+  // 显示变更数据
+  showChangeData?: any[];
+  // 子表操作按钮
+  operationButton?: operationButtonInfo[];
+  // 排序
+  order?: number;
 };
 
-export type Rule = {
+export type RuleType =
+  | 'show'
+  | 'calc'
+  | 'executor'
+  | 'attribute'
+  | 'condition'
+  | 'code'
+  | 'encode'
+  | 'validate'
+  | 'combination'
+  | 'assignment'
+  | 'fieldAssignments';
+
+export interface Rule<T extends RuleType = RuleType> {
   // 规则Id
   id: string;
   // 规则名称
   name: string;
   // 规则类型
-  type: 'show' | 'calc' | 'executor' | 'attribute';
+  type: T;
   // 触发对象
   trigger: string[];
   // 备注
   remark: string;
+  // 是否手动
+  isManual?: boolean;
+  // 手动规则触发时机
+  triggerTiming: 'default' | 'submit';
+  // 组合办事
+  combination?: CombinationType;
+  // 组合办事业务类型
+  applyType?: string;
+  // 赋值规则
+  assignments?: {
+    primary: MappingData;
+    detail: MappingData;
+  }[];
+  // 字段赋值
+  fieldAssignments?: {
+    primary: MappingData;
+    detail: MappingData;
+    type: string;
+  }[];
+  // 配置限额规则
+  quota?: QuotaRuleType;
+  // 子表向子表赋值规则
+  detailToDetail?: DetailToDetailRuleType;
+  // 赋值规则类型
+  ruleType?: string;
+}
+
+export type Encode = {
+  [x: string]: any;
+  configData: Encode[];
+  targetParam: MappingData;
+  // 编码Id
+  id: string;
+  encodeValue: string;
+  // 取值/长度
+  length: number | string;
+  // 规则类型
+  type: number;
+  // 维度
+  isDimension: boolean;
+  // 顺序
+  order: number;
+  // 序列规则
+  sequence: XSequence;
+};
+
+export type speciesListItem = {
+  // 筛选分类Id
+  id: string;
+  // 筛选名称
+  name: string;
+  // 分类名称
+  typeName: string;
+  // 编码
+  code: string;
+  // 值
+  value: string;
 };
 
 // 表单展示规则
-export type FormShowRule = {
+export interface FormShowRule extends Rule<'show' | 'condition'> {
   // 渲染类型
-  showType: string;
+  showType: RenderType;
   // 值
   value: boolean;
   // 目标对象
@@ -825,54 +1261,147 @@ export type FormShowRule = {
   condition: string;
   // 条件文本
   conditionText: string;
-} & Rule;
+}
 
 // 表单计算规则
-export type FormCalcRule = {
+export interface FormCalcRule extends Rule<'calc'> {
   // 键值对
   mappingData: MappingData[];
   // 目标对象
   target: string;
   // 表达式
   formula: string;
-} & Rule;
+}
+
 // 表单展示规则
-export type NodeShowRule = {
+export interface NodeShowRule extends Rule<'show'> {
   // 目标
   target: MappingData;
   // 渲染类型
-  showType: string;
+  showType: RenderType;
   // 值
   value: boolean;
   // 条件
   condition: string;
-} & Rule;
+}
+
+// 组合办事规则
+export interface NodeCombinationRule extends Rule<'combination'> {
+  id: string;
+  // 组合办事类型
+  applyType: string;
+  // 组合办事
+  combination: CombinationType;
+}
+
+// 赋值规则
+export interface NodeAssignmentRule extends Rule<'assignment'> {
+  id: string;
+  // 赋值规则 主子表键值对
+  assignments?: {
+    primary: MappingData;
+    detail: MappingData;
+  }[];
+  // 字段赋值
+  fieldAssignments?: {
+    primary: MappingData;
+    detail: MappingData;
+    type: string;
+  }[];
+  ruleType: string;
+  quota?: QuotaRuleType;
+  detailToDetail?: DetailToDetailRuleType;
+}
 
 // 表单计算规则
-export type NodeCalcRule = {
+export interface NodeCalcRule extends Rule<'calc'> {
   // 键值对
   mappingData: MappingData[];
   // 目标
   target: MappingData;
   // 表达式
   formula: string;
-} & Rule;
+}
 
 // 表单计算规则
-export type NodeExecutorRule = {
+export interface NodeExecutorRule extends Rule<'executor'> {
   // 键值对
   keyMap: Map<string, MappingData>;
   // 方法
   function: string;
-} & Rule;
+}
+
+// 报表代码规则
+export interface NodeCodeRule extends Rule<'code'> {
+  // 表达式
+  formula: string;
+  // 引用对象
+  mappingData?: MappingData[];
+  // 作用表单
+  target?: MappingData;
+}
+
+export type ErrorLevel = 'info' | 'warning' | 'error';
+
+export interface NodeValidateRule extends Rule<'validate'> {
+  // 键值对
+  mappingData: MappingData[];
+  /** 错误消息 */
+  message: string;
+  /** 错误级别 */
+  errorLevel: ErrorLevel;
+  // 表达式
+  formula: string;
+}
+
+export interface ValidateErrorInfo {
+  errorLevel: ErrorLevel;
+  message: string;
+  position?: string;
+  errorCode: string;
+}
+
+export interface RuleValidateError extends ValidateErrorInfo {
+  rule: Rule;
+  formId?: string;
+  expected?: any;
+  actual?: any;
+}
+
+export interface RequiredValidateError extends ValidateErrorInfo {
+  field: FieldModel;
+  formId: string;
+}
 
 // 属性筛选
-export type AttributeFilterRule = {
+export interface AttributeFilterRule extends Rule<'attribute'> {
   // 条件
   condition: string;
   // 条件文本
   conditionText: string;
-} & Rule;
+}
+
+// 条件
+export type conditionConfig = {
+  // 条件Id
+  id: string;
+  // 条件
+  condition: string;
+  // 条件文本
+  conditionText: string;
+};
+
+// 条件
+export type speciesFilter = {
+  // Id
+  id: string;
+  // 名称
+  name: string;
+  // 条件文本
+  remark: string;
+  // 分类数据
+  speciesList: XTagFilter[];
+};
 
 export type MappingData = {
   key: string;
@@ -883,30 +1412,147 @@ export type MappingData = {
   formId: string;
   typeName: string;
   trigger: string;
+  widget?: string;
+  valueType?: string;
 };
+
+// 组合办事 - 规则
+export type CombinationType = {
+  // 规则名称
+  name: string;
+  // 备注
+  remark: string;
+  // 当前操作的资产
+  assetSource: model.MappingData;
+  // 拆分目标
+  splitTarget?: model.MappingData;
+  // 拆分类型
+  splitType?: model.MappingData;
+  // 拆分条数
+  splitNumber?: model.MappingData;
+  // 资产合并-标记的核销表id
+  verificationFormId?: string;
+  // 子表id
+  detailFormId?: string;
+};
+
+// 计算配置限额规则
+export type QuotaRuleType = {
+  // 可更新数计算截止日期
+  quotaExpirationDate?: string;
+  // 资产取得日期
+  quotaAcquisitionDate?: model.MappingData;
+  // 资产折旧/摊销年限
+  quotaDeprecitionDate?: model.MappingData;
+  // 资产配置限额可更新数
+  quotaNumber?: model.MappingData;
+  // 折旧摊销年限表
+  quotaDeprecitionForm?: schema.XForm[];
+};
+
+// 子表向子表赋值规则
+export type DetailToDetailRuleType = {
+  // 被赋值的表单
+  forms?: schema.XForm[];
+  // 单据表字段
+  billsField?: model.MappingData;
+  // 明细表字段
+  detailField?: model.MappingData;
+};
+
+export type RenderType = 'visible' | 'isRequired' | 'readOnly';
 
 // 渲染规则，表单、办事渲染规则
 export type RenderRule = {
+  // 表单
   formId: string;
+  // 特性
   destId: string;
-  typeName: string;
+  // 类型
+  typeName: RenderType;
+  // 值
   value: any;
 };
 
-// 执行器
-export type Executor = {
+export interface ExecutorBase<T extends string> {
   // ID
   id: string;
   // 执行器触发时机
   trigger: string;
-  // 执行器方法名称
-  funcName: string;
-  // 字段变更
-  changes: FormChange[];
+  /** 执行器方法名称 */
+  funcName: T;
+  /** 是否展示执行内容 */
+  visible?: boolean;
+}
+
+export interface AcquireExecutor extends ExecutorBase<'数据申领'> {
+  // 数据源空间（数据申领）
+  belongId: string;
+  // 数据申领
+  acquires: Acquire[];
+}
+
+export interface WebhookExecutor extends ExecutorBase<'Webhook'> {
   // 请求地址
   hookUrl: string;
+}
+
+export interface FieldsChangeExecutor extends ExecutorBase<'字段变更'> {
+  // 字段变更
+  changes: FormChange[];
+}
+export interface AcquireGroupExecutor extends ExecutorBase<'资产领用'> {
+  // 不知道有什么字段
+}
+
+export interface ReceptionChangeExecutor extends ExecutorBase<'任务状态变更'> {
+  //
+}
+
+export interface CopyFormExecutor extends ExecutorBase<'复制表到子表'> {
+  // 表的数据复制
+  copyForm: CopyForm[][];
+}
+
+export interface MallOrderSyncExecutor extends ExecutorBase<'商城订单同步'> {
+  mallOrderSyncForm: {
+    forms: any;
+    identifier?: any;
+    collName?: string;
+  };
+}
+
+// 执行器
+export type Executor =
+  | AcquireExecutor
+  | WebhookExecutor
+  | FieldsChangeExecutor
+  | AcquireGroupExecutor
+  | ReceptionChangeExecutor
+  | CopyFormExecutor
+  | MallOrderSyncExecutor;
+
+export type Acquire = {
+  // 主键
+  id: string;
+  // 编码
+  code: string;
+  // 名称
+  name: string;
+  // 类型
+  typeName: string;
+  // 是否启用
+  enable: boolean;
+  // 集合
+  collName?: string;
+  // 是否自选
+  selectable?: boolean;
 };
 
+export interface Acquiring extends Acquire, Xbase {
+  // 当前操作日志
+  operationId: String;
+}
 
 export type FormChange = {
   // 主键
@@ -915,6 +1561,13 @@ export type FormChange = {
   name: string;
   // 变动字段集合
   fieldChanges: FieldChange[];
+};
+
+export type CopyForm = {
+  // 表单id
+  id: string;
+  // 表单名称
+  name: string;
 };
 
 export type FieldChange = {
@@ -932,6 +1585,8 @@ export type FieldChange = {
   after: any;
   // 变动后名称
   afterName: string;
+  // 变动后默认值
+  options?: XAttributeProps;
 };
 
 export type Branche = {
@@ -950,7 +1605,7 @@ export type Condition = {
 export type QueryTaskReq = {
   // 流程定义Id
   defineId: string;
-  // 任务类型 审批、抄送
+  // 任务类型 审核、抄送
   typeName: string;
 };
 
@@ -963,6 +1618,12 @@ export type ApprovalTaskReq = {
   comment: string;
   // 数据
   data: string;
+  // 网关
+  gateways: string;
+  // 退回任务Id
+  backId?: string;
+  // 退回修改后是否跳回至该审核节点
+  isSkip?: boolean;
 };
 
 export type TargetMessageModel = {
@@ -1034,6 +1695,7 @@ export type ShareIcon = {
  * 文件系统项分享数据
  */
 export type FileItemShare = {
+  key?: string;
   /** 完整路径 */
   size: number;
   /** 名称 */
@@ -1063,6 +1725,10 @@ export type FileItemModel = {
   isDirectory: boolean;
   /** 是否包含子目录 */
   hasSubDirectories: boolean;
+  /** 归属id */
+  belongId: string;
+  // /** 是否引用文件 */
+  isLinkFile?: boolean;
 } & FileItemShare;
 
 /** 桶支持的操作 */
@@ -1079,7 +1745,7 @@ export enum BucketOpreates {
 }
 
 /** 桶操作携带的数据模型 */
-export type BucketOpreateModel = {
+export type BucketOperateModel = {
   /** 完整路径 */
   key: string;
   /** 名称 */
@@ -1164,16 +1830,121 @@ export type ActivityType = {
   forward: string[];
   // 标签
   tags: string[];
+  // 链接信息
+  linkInfo: string;
 } & Xbase;
 
-// 加载请求类型
-export type LoadOptions = {
-  filter: any[];
-  take: number;
-  group: string;
-  skip: number;
-  options: any;
+export type RequiredValue<T> = Exclude<T, null | undefined>;
+
+export interface QuerySelector<T> {
+  // Comparison
+  _eq_?: T;
+  _gt_?: T;
+  _gte_?: T;
+  _in_?: RequiredValue<T>[];
+  _lt_?: T;
+  _lte_?: T;
+  _ne_?: T;
+  _nin_?: RequiredValue<T>[];
+  // Logical
+  _not_?: T extends string ? QuerySelector<T> | RegExp : QuerySelector<T>;
+  // Element
+  /**
+   * When `true`, `$exists` matches the documents that contain the field,
+   * including documents where the field value is null.
+   */
+  _exists_?: boolean;
+  _type_?: string | number;
+  // Evaluation
+  _expr_?: any;
+  _jsonSchema_?: any;
+  _mod_?: T extends number ? [number, number] : never;
+  _regex_?: T extends string ? RegExp | string : never;
+  _options_?: T extends string ? string : never;
+  // Geospatial
+  // TODO: define better types for geo queries
+  _geoIntersects_?: { $geometry: object };
+  _geoWithin_?: object;
+  _near_?: object;
+  _nearSphere_?: object;
+  _maxDistance_?: number;
+  // Array
+  // TODO: define better types for $all and $elemMatch
+  _all_?: T extends any[] ? any[] : never;
+  _elemMatch_?: T extends any[] ? object : never;
+  _size_?: T extends any[] ? number : never;
+  // Bitwise
+  _bitsAllClear_?: number | number[];
+  _bitsAllSet_?: number | number[];
+  _bitsAnyClear_?: number | number[];
+  _bitsAnySet_?: number | number[];
+}
+
+export type RootQuerySelector = {
+  _and_?: Array<FilterQuery<any>>;
+  _nor_?: Array<FilterQuery<any>>;
+  _or_?: Array<FilterQuery<any>>;
 };
+
+export type QueryCondition<T> = T | T[] | QuerySelector<T> | Dictionary<any>;
+
+export type FilterQuery<T> = {
+  [P in keyof T]?: QueryCondition<T[P]>;
+};
+
+export interface QueryOptions<T> {
+  match?: FilterQuery<T> & RootQuerySelector & Dictionary<any>;
+  project?: {
+    [P in keyof T]?: number | string;
+  } & Dictionary<string | number>;
+  group?: any;
+  sort?: {
+    [P in keyof T]?: number;
+  };
+  skip?: number;
+  limit?: number;
+  lookup?: {
+    from: string;
+    localField: string;
+    foreignField: string;
+    as: string;
+  };
+  replaceroot?: any;
+  replacewith?: any;
+  unwind?: string;
+}
+
+type SortOptions = {
+  selector: string;
+  desc: boolean;
+};
+
+// 加载请求类型
+export interface LoadOptions<T extends {} = Dictionary<any>> {
+  belongId?: string;
+  collName?: string;
+  filter?: string[];
+  group?: any;
+  options?: QueryOptions<T> | any;
+  userData?: string[];
+  skip?: number;
+  take?: number;
+  formId?: string;
+  requireTotalCount?: boolean;
+  isCountQuery?: boolean;
+  sort?: SortOptions[];
+  extraReations?: string;
+  isExporting?: boolean;
+  clusterId?: string;
+}
+
+export interface SummaryOptions<T extends {} = Dictionary<any>> {
+  collName: string;
+  match?: FilterQuery<T> & RootQuerySelector & Dictionary<any>;
+  fields: string[];
+  ids?: string[];
+  chunkSize?: number;
+}
 
 export type DirectoryContent = {
   forms: XForm[];
@@ -1245,15 +2016,38 @@ export type Sheet<T> = {
 /**
  * 列字段
  */
-export interface Column {
+export interface Column<T = any> {
   // 字段名称
   title: string;
   // 标识符
   dataIndex: string;
   // 类型
-  valueType: string;
+  valueType?: string;
   // 映射
-  lookups?: { id: string; text: string; value: string }[];
+  lookups?: FiledLookup[];
+  // 子表头
+  children?: Column[];
+  // 组件
+  widget?: string;
+  // 隐藏
+  hidden?: boolean;
+  /** 参数 */
+  options?: XAttributeProps;
+  // 格式化
+  format?: (value: T) => any;
+  // 渲染
+  render?: (value: T) => any;
+  // 表头
+  header?: any;
+  // excel 打印样式
+  style?: ExcelStyle;
+}
+
+export interface ExcelStyle {
+  // 内容位置
+  align?: any;
+  // 列宽度
+  width?: number;
 }
 
 // 映射
@@ -1305,6 +2099,11 @@ export type Form = {
   // 表单 ID
   formId?: string;
 } & Node;
+// 打印模板
+export type Print = {
+  // 表单 ID
+  printId?: string;
+} & Node;
 
 // 选择
 export type Selection = {
@@ -1344,7 +2143,7 @@ export type NStatus = 'Stop' | 'Running' | 'Error' | 'Completed';
 export type NEvent = 'Start' | 'Throw' | 'Complete';
 
 // 节点类型
-export type NodeType = '表单' | '表格' | '请求' | '子图' | '映射' | '存储';
+export type NodeType = '表单' | '表格' | '请求' | '子图' | '映射' | '存储' | '打印模板';
 
 // 脚本位置
 export type Pos = 'pre' | 'post';
@@ -1456,18 +2255,199 @@ export type DiskInfoType = {
   getTime: string;
 };
 
-// 草稿
-export type DraftsType = {
-  // 数据
-  typeName: string;
+export type ClassifyTreeType = {
+  // 节点类型
+  type: string;
   // 关系
-  relations: string;
-  // 办事id
-  workId: string;
-  // 备注信息
-  contentText: string;
-  // 办事名称
+  relation: string;
+  // 自己节点
+  children: ClassifyTreeType[];
+  // 选中的分类集合
+  value?: FiledLookup[];
+  // 是否顶级节点
+  isTop?: boolean;
+  // 临时ID
+  _tempId: string;
+  // 父级ID
+  parentId: string | null | undefined;
+};
+
+// 类筛选分类树节点类型
+export type TreeNodeType = {
+  id: string;
+  text?: string;
   name?: string;
-  // 节点信息
-  data: model.InstanceDataModel;
-} & Xbase;
+  typeName?: string;
+  value?: string;
+  info?: string;
+  parentId?: string;
+  key?: string;
+  title?: string;
+  tabKey?: string | number;
+  children?: TreeNodeType[];
+};
+
+export type ClassifyTabType = {
+  label: string;
+  key: string;
+  data: FiledLookup[];
+};
+
+export enum TaskContentType {
+  Report = '报表',
+  Closing = '月结',
+  Questionnaire = '问卷',
+  Notice = '通知公告',
+  Alert = '预警',
+  Regulation = '政策法规',
+  Financial = '加载财务数据',
+}
+
+export interface TaskContentBase<T extends TaskContentType> {
+  type: T;
+  [key: string]: any;
+}
+
+export interface ReportContent extends TaskContentBase<TaskContentType.Report> {
+  /** 报表树id */
+  treeId: string;
+  /** 目录id */
+  directoryId: string;
+  /** 办事id */
+  workId?: string;
+  /** 办事名称 */
+  workName?: string;
+  /** 自动下发权限 */
+  autoDistributionAuthCode?: string;
+}
+
+export interface NoticeContent extends TaskContentBase<TaskContentType.Notice> {
+  /** 通知内容 */
+  message: string;
+}
+
+export interface ClosingContent extends TaskContentBase<TaskContentType.Closing> {}
+
+export type TaskContent = ReportContent | NoticeContent | ClosingContent;
+
+export interface ReportDistributionContent extends ReportContent {
+  /** 开始日期 */
+  startDate?: string;
+  /** 截止日期 */
+  endDate?: string;
+}
+
+export type DistributionContent = ReportDistributionContent;
+
+export interface ReceptionContentBase<T extends TaskContentType> {
+  type: T;
+  [key: string]: any;
+}
+
+/**
+ * (period, workId, treeNode.id) 为唯一标识
+ *
+ * 在`treeNode.speciesItemId`存在的情况下，
+ * (period, workId, treeNode.speciesItemId, treeNode.nodeType)也可作为唯一标识
+ */
+export interface ReportStatus extends ReceptionContentBase<TaskContentType.Report> {
+  /** 关联目录 */
+  directoryId: string;
+  /** 关联办事 */
+  workId: string;
+  /** 树节点 */
+  treeNode: {
+    id: string;
+    treeId: string;
+    nodeType: ReportTreeNodeType;
+    targetId: string;
+  };
+}
+
+export interface FinancialContent
+  extends ReceptionContentBase<TaskContentType.Financial> {}
+
+export type ReceptionContent = ReportStatus | FinancialContent;
+
+export interface TaskSnapshotInfo {
+  taskId: string;
+  period: string;
+}
+
+export interface ReceptionStatusModel {
+  /** 接收用户ID */
+  receiveUserId: string;
+  /** 办事实例ID */
+  instanceId?: string;
+  /** 变更前的 */
+  previousInstanceId?: string;
+  /** 是否被驳回 */
+  isReject?: boolean;
+  /** 数据的ID */
+  thingId?: {
+    [formId: string]: string[];
+  };
+  /** 是否自动补全 */
+  isAutoFill?: boolean;
+}
+
+// 命令
+export interface Command<T = any> {
+  // 命令类型
+  type: string;
+  // 执行
+  cmd: string;
+  // 参数
+  params: T;
+}
+// 报表树子节点
+
+export type ReportTreeNodeView = WithChildren<XReportTreeNode>;
+export interface ReportTaskTreeNodeView extends XReportTaskTreeNode {
+  children: ReportTaskTreeNodeView[];
+  count: number;
+  isLeaf: boolean;
+  reception?: XReception | null;
+  directionChildrenComplete?: boolean;
+}
+export interface ReportSummaryTreeNodeView extends XReportTreeNode {
+  // 子节点
+  children: ReportSummaryTreeNodeView[];
+  reception?: XReception | null;
+  value?: number | null;
+}
+
+export interface ReportTreeNode extends XReportTreeNode {
+  parentCode: string;
+  index: number;
+}
+
+export type operationButtonInfo = {
+  // 按钮名称
+  name: string;
+  // 按钮编码
+  code: string;
+  // 按钮类型
+  type: string;
+  // 绑定的表单
+  form?: {
+    // 表单名称
+    name: string;
+    // 表单id
+    id: string;
+    // 表单信息
+    metadata: any;
+  };
+  // 绑定场景
+  scene?: string;
+};
+
+export interface AllTask extends schema.XWorkTask {
+  tasks?: AllTask[];
+  private?: string;
+}
+
+export interface WorkRecordView extends schema.XWorkRecord {
+  destName?: string;
+  approveType?: string;
+}

@@ -2,7 +2,7 @@ import React from 'react';
 import {
   IPageContext,
   PageContext,
-} from '../../../design/pageBuilder/render/PageContext';
+} from '@/components/PageElement/render/PageContext';
 
 export interface ViewerProps {
   ctx: IPageContext<'view'>;

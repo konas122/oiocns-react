@@ -2,13 +2,14 @@ import React from 'react';
 import InsertButton from '../InsertButton';
 import cls from './index.module.less';
 import { AiOutlineClose } from 'react-icons/ai';
-import { NodeModel } from '@/components/Common/FlowDesign/processType';
+import { WorkNodeDisplayModel } from '@/utils/work';
 
 type IProps = {
   onInsertNode: Function;
   onDelNode: Function;
   onSelected: Function;
-  config: NodeModel;
+  isGroupWork: boolean;
+  config: WorkNodeDisplayModel;
   level: number;
   isEdit: boolean;
 };
@@ -45,7 +46,12 @@ const ConditionNode: React.FC<IProps> = (props) => {
 
       <div className={cls['node-footer']}>
         <div className={cls['btn']}>
-          {props.isEdit && <InsertButton onInsertNode={props.onInsertNode} />}
+          {props.isEdit && (
+            <InsertButton
+              onInsertNode={props.onInsertNode}
+              isGroupWork={props.isGroupWork}
+            />
+          )}
         </div>
       </div>
     </div>
@@ -53,7 +59,7 @@ const ConditionNode: React.FC<IProps> = (props) => {
 };
 
 ConditionNode.defaultProps = {
-  config: {} as NodeModel,
+  config: {} as WorkNodeDisplayModel,
   level: 1,
 };
 

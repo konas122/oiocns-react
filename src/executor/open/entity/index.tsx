@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import { Image } from 'antd';
 import { ProFormColumnsType } from '@ant-design/pro-components';
 import SchemaForm from '@/components/SchemaForm';
 import { TargetModel } from '@/ts/base/model';
@@ -8,8 +9,7 @@ import QrCode from 'qrcode.react';
 import { formatZhDate } from '@/utils/tools';
 import orgCtrl from '@/ts/controller';
 import EntityIcon from '@/components/Common/GlobalComps/entityIcon';
-import TypeIcon from '@/components/Common/GlobalComps/typeIcon';
-import { Theme } from '@/config/theme';
+import UploadBanners from '../../tools/uploadBanners';
 
 interface Iprops {
   entity: schema.XEntity | schema.XTarget;
@@ -19,25 +19,65 @@ interface Iprops {
   编辑
 */
 const EntityPreview: React.FC<Iprops> = ({ entity, finished }) => {
+  const canvasRef = useRef(null);
+
+  const handleDownloadQrcode = (title: string) => {
+    const divElement: any = canvasRef.current;
+    if (!divElement) return;
+    const canvasElement = divElement.querySelector('canvas');
+    // 将 canvas 转换为图片的 Base64 格式
+    const imageDataURL = canvasElement.toDataURL('image/png');
+    // 创建 Blob 对象
+    const blob = dataURItoBlob(imageDataURL);
+    // 创建下载链接
+    const downloadLink = document.createElement('a');
+    downloadLink.href = URL.createObjectURL(blob);
+    downloadLink.download = title;
+
+    // 触发下载
+    downloadLink.click();
+  };
+
+  // 将 Data URI 转换为 Blob 对象
+  const dataURItoBlob = (dataURI: string) => {
+    const byteString = atob(dataURI.split(',')[1]);
+    const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([ab], { type: mimeString });
+  };
+
   const columns: ProFormColumnsType<TargetModel>[] = [
     {
       dataIndex: 'id',
       renderFormItem: () => {
         const avatar: model.FileItemShare = parseAvatar(entity.icon);
         return (
-          <QrCode
-            level="H"
-            size={150}
-            title={`${location.origin}/${entity.id}`}
-            fgColor={Theme.FocusColor}
-            value={`${location.origin}/${entity.id}`}
-            imageSettings={{
-              src: avatar?.thumbnail ?? '',
-              width: 50,
-              height: 50,
-              excavate: true,
-            }}
-          />
+          <div ref={canvasRef} style={{ display: 'flex' }}>
+            <QrCode
+              level="H"
+              size={150}
+              renderAs="canvas"
+              title={`${location.origin}/${entity.id}`}
+              value={`${location.origin}/${entity.id}`}
+              imageSettings={{
+                src: avatar?.thumbnail ?? '',
+                width: 50,
+                height: 50,
+                excavate: true,
+              }}
+            />
+            <Image
+              onClick={() => handleDownloadQrcode(entity.name)}
+              width={18}
+              preview={false}
+              src={`/svg/operate/download.svg?v=1.0.1`}
+              style={{ cursor: 'pointer', marginLeft: '12px' }}
+            />
+          </div>
         );
       },
     },
@@ -122,6 +162,14 @@ const EntityPreview: React.FC<Iprops> = ({ entity, finished }) => {
       render: () => formatZhDate(entity.updateTime),
     });
   }
+  if ('applicationId' in entity) {
+    columns.push({
+      title: '版本',
+      dataIndex: 'version',
+      readonly: true,
+      render: () => `v${(entity as schema.XWorkDefine).version}`,
+    });
+  }
   columns.push({
     title: '简介',
     dataIndex: 'remark',
@@ -129,12 +177,31 @@ const EntityPreview: React.FC<Iprops> = ({ entity, finished }) => {
     colProps: { span: 24 },
     readonly: true,
   });
+
+  if (entity.typeName === '应用') {
+    columns.push({
+      title: '封面',
+      dataIndex: 'banners',
+      readonly: true,
+      render: () => {
+        const { banners } = entity as schema.XApplication;
+        const bannersList = banners ? JSON.parse(banners) : [];
+        return (
+          <UploadBanners
+            readonly={true}
+            banners={Array.isArray(bannersList) ? bannersList : [bannersList]}
+            onChanged={() => {}}
+            directory={orgCtrl.user.directory}
+          />
+        );
+      },
+    });
+  }
   return (
     <SchemaForm<TargetModel>
       open
       title={
-        <div style={{ display: 'flex', flexWrap: 'nowrap' }}>
-          <TypeIcon iconType={entity.typeName} size={20} />
+        <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center' }}>
           {entity.name}
         </div>
       }

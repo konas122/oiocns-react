@@ -4,11 +4,13 @@ import React, { useEffect, useState } from 'react';
 import { ImSearch } from 'react-icons/im';
 import { MenuItemType } from 'typings/globelType';
 import { cleanMenus } from '@/utils/tools';
+import { DownOutlined, UpOutlined } from '@ant-design/icons';
 
 interface CustomMenuType {
   collapsed: boolean;
   selectMenu: MenuItemType;
   item: MenuItemType;
+  height?: number;
   onSelect?: (item: MenuItemType) => void;
   onMenuClick?: (item: MenuItemType, menuKey: string) => void;
 }
@@ -45,7 +47,7 @@ const CustomMenu = (props: CustomMenuType) => {
         exsit = exsit || result.length > 0;
         newItem.children = result;
       }
-      if (item?.item?.groupTags?.includes('已删除')) {
+      if (item.item?.groupTags?.includes('已删除')) {
         exsit = false;
       }
       if (exsit) {
@@ -144,6 +146,7 @@ const CustomMenu = (props: CustomMenuType) => {
     setOpenKeys(keys);
     setSelectedKeys([props.selectMenu.key]);
   };
+  const calculatedHeight =  props.height ? `${props.height}vh` : '';
   return (
     <>
       <span style={{ display: 'flex', justifyContent: 'center' }}>
@@ -160,23 +163,33 @@ const CustomMenu = (props: CustomMenuType) => {
           />
         )}
       </span>
-
-      <Menu
-        className="customMenu"
-        mode="inline"
-        inlineIndent={10}
-        items={data}
-        triggerSubMenuAction="click"
-        onContextMenu={(e) => {
-          e.preventDefault();
-          setVisibleMenu(true);
-        }}
-        expandIcon={() => <></>}
-        openKeys={openKeys}
-        onOpenChange={(keys) => {
-          setOpenKeys(keys);
-        }}
-        selectedKeys={selectedKeys}></Menu>
+      
+      <div style={{height: calculatedHeight}}>
+        <Menu
+          className="customMenu"
+          mode="inline"
+          inlineIndent={10}
+          items={data}
+          triggerSubMenuAction="click"
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setVisibleMenu(true);
+          }}
+          expandIcon={(item) => {
+            return (item as any)?.children?.length ? (
+              item.isOpen ? (
+                <UpOutlined style={{ fontSize: '10px' }} />
+              ) : (
+                <DownOutlined style={{ fontSize: '10px' }} />
+              )
+            ) : null;
+          }}
+          openKeys={openKeys}
+          onOpenChange={(keys) => {
+            setOpenKeys(keys);
+          }}
+          selectedKeys={selectedKeys}></Menu>
+      </div>
     </>
   );
 };

@@ -36,11 +36,20 @@ export class PropHandler extends i.SheetHandler<PropSheet> {
   checkData(excel: t.IExcel) {
     const allErrors: t.Error[] = [];
     const species: string[] = ['选择型', '分类型'];
-    const types: string[] = ['数值型', '描述型', '时间型', '日期型', '用户型', '附件型'];
+    const types: string[] = [
+      '数值型',
+      '货币型',
+      '描述型',
+      '时间型',
+      '日期型',
+      '用户型',
+      '附件型',
+    ];
     const all: string[] = [...species, ...types];
     const dirHandler = excel.handlers.find((item) => item.sheet.name == '目录');
     const dictHandler = excel.handlers.find((item) => item.sheet.name == '字典定义');
     const classifyHandler = excel.handlers.find((item) => item.sheet.name == '分类定义');
+    const codeSets = new Set();
     this.sheet.data.forEach((item, index) => {
       let dir = dirHandler?.sheet.data.find((dir) => dir.code == item.directoryCode);
       let hasType = all.indexOf(item.valueType) != -1;
@@ -53,6 +62,7 @@ export class PropHandler extends i.SheetHandler<PropSheet> {
         { res: !item.info, error: `附加信息不能为空！` },
         { res: !dir, error: `目录代码:${item.directoryCode}不存在！` },
         { res: !hasType, error: `属性类型只能在[${all.join(',')}]中选择！` },
+        { res: codeSets.has(item.code), error: `属性编码不能重复！` },
       ]);
       if (hasSpecies) {
         let searched;
@@ -70,6 +80,7 @@ export class PropHandler extends i.SheetHandler<PropSheet> {
           ]),
         );
       }
+      codeSets.add(item.code);
       allErrors.push(...errors);
     });
     return allErrors;

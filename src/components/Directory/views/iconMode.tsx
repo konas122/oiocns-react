@@ -25,7 +25,7 @@ const IconMode = ({
     return css.list_item;
   };
   const FileCard = (item: IDEntity) => (
-    <Dropdown key={item.id} menu={contextMenu(item)} trigger={['contextMenu']}>
+    <Dropdown key={item.key} menu={contextMenu(item)} trigger={['contextMenu']}>
       <Card
         size="small"
         className={getItemClassName(item)}

@@ -8,6 +8,7 @@ export {
   encodeKey,
   formatDate,
   formatSize,
+  getAsyncTime,
   sliceFile,
   StringPako,
 } from './format';
@@ -28,6 +29,10 @@ export {
   mixin,
   safeStringify,
 } from './objects';
+export { validRule } from './rule/condition';
+export { filterConvert } from './rule/filter';
+export type { WithChildren } from './tree';
+export { AggregateTree, Node, Tree } from './tree';
 export {
   isBoolean,
   isDefined,
@@ -41,6 +46,7 @@ export {
   isTypedArray,
   isUndefined,
   isUndefinedOrNull,
+  isSnowflakeId,
 } from './types';
 export { Constants, toUint8, toUint32 } from './uint';
 export { generateUuid, isUUID } from './uuid';

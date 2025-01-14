@@ -71,7 +71,6 @@ export class Member extends FileInfo<schema.XTarget> implements IMemeber {
     return operates;
   }
 }
-
 export class MemberDirectory extends Directory {
   constructor(_target: ITarget) {
     super(
@@ -85,12 +84,14 @@ export class MemberDirectory extends Directory {
       _target,
       _target.directory,
     );
+    this.accepts = _target.accepts;
   }
+  accepts: string[] = ['人员'];
   get superior(): IFile {
     return this.target;
   }
   override content(): IFile[] {
-    if (this.target.session.isMyChat || this.target.hasRelationAuth()) {
+    if (this.target.isMyTeam) {
       return this.target.members
         .map((i) => new Member(i, this.target))
         .sort((a, b) => (a.metadata.updateTime < b.metadata.updateTime ? 1 : -1));

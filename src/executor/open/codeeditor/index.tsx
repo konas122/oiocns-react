@@ -1,9 +1,6 @@
 import React from 'react';
 import { useEffect } from 'react';
 import { useState } from 'react';
-import CodeMirror from '@uiw/react-codemirror';
-import { vscodeDark } from '@uiw/codemirror-theme-vscode';
-import { langs } from '@uiw/codemirror-extensions-langs';
 import FullScreenModal from '@/components/Common/fullScreen';
 import { getJsonText } from '@/utils';
 import axios from 'axios';
@@ -11,6 +8,8 @@ import './index.less';
 import { ProConfigProvider } from '@ant-design/pro-components';
 import { FileItemShare } from '@/ts/base/model';
 import { shareOpenLink } from '@/utils/tools';
+import { MonacoEditor } from '@/components/Common/MonacoEditor';
+import { EditorLanguages } from '@/components/Common/MonacoEditor/editor';
 interface IProps {
   finished: () => void;
   share: FileItemShare;
@@ -22,29 +21,29 @@ const CodeEditor = ({ finished, share }: IProps) => {
   const onTextChange = React.useCallback((value: string) => {
     setMdContent(value);
   }, []);
-  const [extensions, setExtensions] = useState(langs.markdown);
+  const [language, setLanguage] = useState<EditorLanguages>('markdown');
   const initData = () => {
     switch (share.extension) {
       case '.vue':
-        setExtensions(langs.vue);
+        setLanguage('vue');
         break;
       case '.tsx':
-        setExtensions(langs.tsx);
+        setLanguage('tsx');
         break;
       case '.jsx':
-        setExtensions(langs.jsx);
+        setLanguage('jsx');
         break;
       case '.js':
-        setExtensions(langs.javascript());
+        setLanguage('javascript');
         break;
       case '.json':
-        setExtensions(langs.json);
+        setLanguage('json');
         break;
       case '.html':
-        setExtensions(langs.html());
+        setLanguage('html');
         break;
       case '.java':
-        setExtensions(langs.java);
+        setLanguage('java');
         break;
       default:
         break;
@@ -90,13 +89,10 @@ const CodeEditor = ({ finished, share }: IProps) => {
               }}>
               {share.name}
             </div>
-            <CodeMirror
-              // width={isProject ? '890px' : '1200px'}
-              width={'calc(100vw - 330px)'}
-              theme={vscodeDark}
+            <MonacoEditor
               value={mdContent}
+              language={language}
               onChange={onTextChange}
-              extensions={[extensions]}
             />
           </div>
         </div>

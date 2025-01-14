@@ -6,6 +6,7 @@ type ConcurrentNodeProps = {
   onInsertNode: Function;
   onDelNode: Function;
   onSelected: Function;
+  isGroupWork: boolean;
   config: any;
   level: any;
   isEdit: boolean;
@@ -43,7 +44,12 @@ const ConcurrentNode: React.FC<ConcurrentNodeProps> = (props: ConcurrentNodeProp
       </div>
       <div className={cls['node-footer']}>
         <div className={cls['btn']}>
-          {props.isEdit && <InsertButton onInsertNode={props.onInsertNode} />}
+          {props.isEdit && (
+            <InsertButton
+              onInsertNode={props.onInsertNode}
+              isGroupWork={props.isGroupWork}
+            />
+          )}
         </div>
       </div>
     </div>

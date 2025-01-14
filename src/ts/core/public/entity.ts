@@ -38,12 +38,18 @@ export interface IEntity<T> extends Emitter {
   updater: model.ShareIcon;
   /** 归属 */
   belong: model.ShareIcon;
+  /** 是否快捷方式 */
+  isShortcut: boolean;
   /** 分组标签 */
   groupTags: string[];
+  /** 过滤标签 */
+  filterTags: string[];
   /** 查找元数据 */
   findMetadata<U>(id: string): U | undefined;
   /** 更新元数据 */
   updateMetadata<U extends schema.XEntity>(data: U): void;
+  /** 设置元数据 */
+  setMetadata(_metadata: T): void;
   /**
    * 对实体可进行的操作
    * @param mode 模式,默认为配置模式
@@ -67,15 +73,16 @@ export abstract class Entity<T extends schema.XEntity>
   _metadata: T;
   key: string;
 
-  /** 是否快捷方式 */
-  get isShortcut() {
-    return !!this._metadata.sourceId;
-  }
   get id(): string {
     return this._metadata.id;
   }
+
+  /** 是否快捷方式 */
+  get isShortcut() {
+    return false;
+  }
   get name(): string {
-    return this.metadata.name;
+    return this.metadata.name ?? '';
   }
   get code(): string {
     return this.metadata.code;
@@ -125,8 +132,11 @@ export abstract class Entity<T extends schema.XEntity>
     }
     return this._gtags;
   }
-  setMetadata(_metadata: T): void {
-    if (_metadata.id === this.id) {
+  get filterTags(): string[] {
+    return this.groupTags;
+  }
+  setMetadata(_metadata: T, force: boolean = false): void {
+    if (_metadata.id === this.id || force) {
       this._metadata = _metadata;
       ShareIdSet.set(this.id, _metadata);
       this.changCallback();

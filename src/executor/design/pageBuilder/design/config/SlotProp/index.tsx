@@ -1,8 +1,8 @@
 import { Input } from 'antd';
 import React, { useContext, useState } from 'react';
-import { PageElement } from '../../../core/PageElement';
+import { PageElement } from '@/ts/element/PageElement';
 import AddElementModal from '../../AddElementModal';
-import { DesignContext, PageContext } from '../../../render/PageContext';
+import { DesignContext, PageContext } from '@/components/PageElement/render/PageContext';
 import { IExistTypeProps } from '../IExistTypeEditor';
 
 const SlotProp: React.FC<IExistTypeProps<PageElement>> = ({ value, prop }) => {

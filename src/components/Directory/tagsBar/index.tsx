@@ -9,6 +9,8 @@ interface IProps {
   select: string;
   initTags: string[];
   excludeTags: string[];
+  isDynamic?: boolean;
+  customTags?: { tag: string; count: number }[];
   extraTags: boolean;
   showBack?: boolean;
   selectFiles: IEntity<schema.XEntity>[];
@@ -29,7 +31,7 @@ const TagsBar: React.FC<IProps> = (props) => {
     }
     if (props.extraTags) {
       props.entitys.forEach((entity) => {
-        entity.groupTags.forEach((tag) => {
+        entity.filterTags.forEach((tag) => {
           if (!props.excludeTags.includes(tag)) {
             const index = tags.findIndex((i) => i.tag === tag);
             if (index > -1) {
@@ -41,6 +43,11 @@ const TagsBar: React.FC<IProps> = (props) => {
         });
       });
     }
+
+    if (props.isDynamic) {
+      tags.push(...(props.customTags ?? []));
+    }
+
     return tags.sort((a, b) => {
       const aqz = a.tag === '已删除' ? 10 : 0;
       const bqz = b.tag === '已删除' ? 10 : 0;
@@ -68,13 +75,13 @@ const TagsBar: React.FC<IProps> = (props) => {
         {count > 0 && <span className={cls.item_count}>{count}</span>}
       </div>
     );
-  };
+  };  
   return (
     <div className={cls.tags_bar}>
       {props.showBack && (
         <Button type="link" title="返回" icon={<ImUndo2 />} onClick={props.onBack} />
       )}
-      <Space className={cls.tags_bar_content} size={10}>
+      <Space style={{ paddingTop: '2px' }} className={cls.tags_bar_content} size={10}>
         {groupTags().map((item) => loadBarItem(item.tag, item.count))}
       </Space>
     </div>

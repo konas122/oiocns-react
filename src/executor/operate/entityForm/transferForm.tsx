@@ -4,6 +4,7 @@ import { IDirectory } from '@/ts/core';
 import { ITransfer } from '@/ts/core/';
 import { ProFormColumnsType, ProFormInstance } from '@ant-design/pro-components';
 import React, { createRef } from 'react';
+import { generateCodeByInitials } from '@/utils/tools';
 
 interface IProps {
   formType: string;
@@ -56,6 +57,11 @@ const TransferForm: React.FC<IProps> = ({ formType, current, finished }) => {
       onOpenChange={(open: boolean) => {
         if (!open) {
           finished();
+        }
+      }}
+      onValuesChange={async (values: any) => {
+        if (Object.keys(values)[0] === 'name') {
+          formRef.current?.setFieldValue('code', generateCodeByInitials(values['name']));
         }
       }}
       onFinish={async (values) => {

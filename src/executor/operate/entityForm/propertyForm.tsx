@@ -149,7 +149,7 @@ const PropertyForm = (props: Iprops) => {
       });
     }
 
-    if (selectType === '数值型') {
+    if (['数值型', '货币型'].includes(selectType)) {
       columns.push({
         title: '单位',
         dataIndex: 'unit',
@@ -161,6 +161,24 @@ const PropertyForm = (props: Iprops) => {
       valueType: 'textarea',
       readonly: readonly,
       colProps: { span: 24 },
+    });
+    columns.push({
+      title: '是否记录变更值',
+      dataIndex: 'isChangeTarget',
+      valueType: 'switch',
+      colProps: { span: 12 },
+    });
+    columns.push({
+      title: '是否记录变更源',
+      dataIndex: 'isChangeSource',
+      valueType: 'switch',
+      colProps: { span: 12 },
+    });
+    columns.push({
+      title: '是否可拆分或合并',
+      dataIndex: 'isCombination',
+      valueType: 'switch',
+      colProps: { span: 12 },
     });
     if (readonly) {
       columns.push(...EntityColumns(props.current!.metadata));
